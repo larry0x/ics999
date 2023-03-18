@@ -36,7 +36,6 @@ args = ["udeps"]
 [tasks.check]
 script = "cosmwasm-check artifacts/*.wasm"
 
-# This task requires Docker: https://docs.docker.com/get-docker/
 [tasks.optimize]
 script = """
 if [[ $(arch) == "arm64" ]]; then
@@ -48,17 +47,16 @@ fi
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  ${image}:0.12.10
+  ${image}:0.12.12
 """
 
-# Update the `contracts` array in the script to reflect the content of your project
 [tasks.schema]
 script = """
 rm -rf schemas
 mkdir schemas
 
 contracts=(
-  steak-hub
+  cw-one
 )
 
 for contract in ${contracts[@]}; do
@@ -69,12 +67,10 @@ done
 rm -rf schema
 """
 
-# Update the `crates` array in the script to reflect the content of your project
 [tasks.publish]
 script = """
 crates=(
-  steak
-  steak-hub
+  cw-one
 )
 
 for crate in ${crates[@]}; do

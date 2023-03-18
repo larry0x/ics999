@@ -1,6 +1,6 @@
 [package]
-name          = "steak-hub"
-description   = "Description of the contract"
+name          = "cw-one"
+description   = "One channel"
 version       = { workspace = true }
 authors       = { workspace = true }
 edition       = { workspace = true }
@@ -15,15 +15,15 @@ rust-version  = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
+default = ["entry"]
+# enable this feature to include instantiate/execute/query etc. exports
+entry = []
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 cw2             = { workspace = true }
 cw-ownable      = { workspace = true }
-steak           = { path = "../../packages/steak" }
 thiserror       = { workspace = true }

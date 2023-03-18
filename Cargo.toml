@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts/*", "packages/*"]
+members = ["contracts/*"]
 
 [workspace.package]
 version       = "0.0.0"
@@ -7,9 +7,9 @@ authors       = ["Larry Engineer <gm@larry.engineer>"]
 edition       = "2021"
 license       = "UNLICENSED"
 homepage      = "https://larry.engineer"
-repository    = "https://github.com/steak-enjoyers/cw-template"
-documentation = "https://github.com/steak-enjoyers/cw-template#readme"
-keywords      = ["blockchain", "cosmos", "cosmwasm"]
+repository    = "https://github.com/steak-enjoyers/ics-999-demo"
+documentation = "https://github.com/steak-enjoyers/ics-999-demo#readme"
+keywords      = ["blockchain", "cosmos", "cosmwasm", "ibc"]
 rust-version  = "1.65.0"
 
 [workspace.dependencies]
