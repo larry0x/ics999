@@ -23,7 +23,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
+cosmwasm-std    = { workspace = true, features = ["ibc3"] }
 cw2             = { workspace = true }
 cw-ownable      = { workspace = true }
 thiserror       = { workspace = true }

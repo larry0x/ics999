@@ -1,17 +1,17 @@
-#[cfg(feature = "entry")]
-use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Response, StdResult,
+};
 
 use crate::{
     error::ContractResult,
     execute,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    CONTRACT_NAME, CONTRACT_VERSION,
 };
 
-pub const CONTRACT_NAME: &str = "crates.io:cw-one";
-pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[cfg_attr(feature = "entry", entry_point)]
+#[entry_point]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -22,7 +22,7 @@ pub fn instantiate(
     execute::init(deps, info.sender.as_str())
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[entry_point]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -39,7 +39,61 @@ pub fn execute(
     }
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[entry_point]
+pub fn ibc_channel_open(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: IbcChannelOpenMsg,
+) -> ContractResult<IbcChannelOpenResponse> {
+    todo!();
+}
+
+#[entry_point]
+pub fn ibc_channel_connect(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: IbcChannelConnectMsg,
+) -> ContractResult<IbcBasicResponse> {
+    todo!();
+}
+
+#[entry_point]
+pub fn ibc_channel_close(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: IbcChannelCloseMsg,
+) -> ContractResult<IbcBasicResponse> {
+    todo!();
+}
+
+#[entry_point]
+pub fn ibc_packet_receive(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: IbcPacketReceiveMsg,
+) -> ContractResult<IbcReceiveResponse> {
+    todo!();
+}
+
+#[entry_point]
+pub fn ibc_packet_ack(
+    _deps: DepsMut,
+    _env: Env,
+    _ack: IbcPacketAckMsg,
+) -> ContractResult<IbcBasicResponse> {
+    todo!();
+}
+
+#[entry_point]
+pub fn ibc_packet_timeout(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: IbcPacketTimeoutMsg,
+) -> ContractResult<IbcBasicResponse> {
+    todo!();
+}
+
+#[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
