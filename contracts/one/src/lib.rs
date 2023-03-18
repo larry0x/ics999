@@ -1,5 +1,5 @@
 #[cfg(feature = "entry")]
-pub mod contract;
+pub mod entries;
 pub mod error;
 pub mod execute;
 pub mod ibc;
