@@ -1,13 +1,17 @@
-use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+#[cfg(feature = "entry")]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+
+use crate::{
+    error::ContractResult,
+    execute,
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
 };
 
-use crate::{error::ContractResult, msg::{InstantiateMsg, ExecuteMsg, QueryMsg}, execute};
-
-pub const CONTRACT_NAME: &str = "crates.io:steak-hub";
+pub const CONTRACT_NAME: &str = "crates.io:cw-one";
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[entry_point]
+#[cfg_attr(feature = "entry", entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -15,11 +19,10 @@ pub fn instantiate(
     _msg: InstantiateMsg,
 ) -> ContractResult<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    cw_ownable::initialize_owner(deps.storage, deps.api, Some(info.sender.as_str()))?;
-    Ok(Response::default())
+    execute::init(deps, info.sender.as_str())
 }
 
-#[entry_point]
+#[cfg_attr(feature = "entry", entry_point)]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -36,12 +39,9 @@ pub fn execute(
     }
 }
 
-#[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
+#[cfg_attr(feature = "entry", entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
     }
-    .map_err(Into::into)
 }
-
-
