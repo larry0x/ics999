@@ -1,0 +1,30 @@
+[workspace]
+members = ["contracts/*", "packages/*"]
+
+[workspace.package]
+version       = "0.0.0"
+authors       = ["Larry Engineer <gm@larry.engineer>"]
+edition       = "2021"
+license       = "UNLICENSED"
+homepage      = "https://larry.engineer"
+repository    = "https://github.com/steak-enjoyers/cw-template"
+documentation = "https://github.com/steak-enjoyers/cw-template#readme"
+keywords      = ["blockchain", "cosmos", "cosmwasm"]
+rust-version  = "1.65.0"
+
+[workspace.dependencies]
+cosmwasm-schema = "1.2"
+cosmwasm-std    = "1.2"
+cw2             = "1.0"
+cw-ownable      = "0.5"
+thiserror       = "1"
+
+[profile.release]
+codegen-units    = 1
+debug            = false
+debug-assertions = false
+incremental      = false
+lto              = true
+opt-level        = 3
+overflow-checks  = true
+rpath            = false

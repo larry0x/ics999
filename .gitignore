@@ -1,0 +1,12 @@
+# cosmwasm build artifacts
+artifacts/
+
+# rust
+target/
+
+# editors
+.idea/
+.vscode/
+
+# macos
+.DS_Store

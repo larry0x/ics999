@@ -1,0 +1,16 @@
+[package]
+name          = "steak"
+description   = "Description of the package"
+version       = { workspace = true }
+authors       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+homepage      = { workspace = true }
+repository    = { workspace = true }
+documentation = { workspace = true }
+keywords      = { workspace = true }
+rust-version  = { workspace = true }
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cw-ownable      = { workspace = true }
