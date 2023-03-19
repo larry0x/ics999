@@ -1,65 +1,71 @@
-# CosmWasm Template
+# ICS-999
 
-Template for multi-contract [CosmWasm](https://github.com/CosmWasm/cosmwasm) projects
+An all-in-one IBC protocol providing fungible token transfer, interchain account, and (in the future) async query functionalities, implemented in [CosmWasm](https://github.com/CosmWasm/cosmwasm).
 
 ## How to Use
 
 Install [cargo-make](https://sagiegurari.github.io/cargo-make/):
 
-```sh
+```shell
 cargo install --force cargo-make
 ```
 
 Run formatter:
 
-```sh
+```shell
 cargo make fmt
 ```
 
-Run tests:
+Run unit tests:
 
-```sh
+```shell
 cargo make test
+```
+
+Run integration tests:
+
+```shell
+cargo make integration-test
 ```
 
 Run linter (clippy):
 
-```sh
+```shell
 cargo make lint
 ```
 
 Check for unused dependencies:
 
-```sh
+```shell
 cargo make udeps
 ```
 
 Compile all contracts using [rust-optimizer](https://github.com/CosmWasm/rust-optimizer):
 
-```sh
+```shell
 cargo make optimize
 ```
 
 Once optimized, verify the wasm binaries are ready to be uploaded to the blockchain:
 
-```sh
+```shell
 cargo make check
 ```
 
 Generate JSON schema for all contracts:
 
-```sh
+```shell
 cargo make schema
 ```
 
 Publish contracts and packages to [crates.io](https://crates.io/):
 
-```sh
+```shell
 cargo make publish
 ```
 
-**NOTE:** For the last two tasks (schema and publish), you need to update the shell script in [`Makefile.toml`](./Makefile.toml) for them to work.
+## Copyright
 
-## License
+ICS-999 © 2023 [larry0x](https://twitter.com/larry0x)
 
-TBD
+ICS-999, including its specification and Rust implementation, is a proprietary software owned solely by [larry0x](https://twitter.com/larry0x). All rights reserved.
