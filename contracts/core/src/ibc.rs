@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    DepsMut, IbcBasicResponse, IbcChannel, IbcChannelOpenResponse, IbcOrder, Storage,
+    DepsMut, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder,
+    Storage,
 };
 
 use crate::{
@@ -46,6 +47,27 @@ pub fn open_connect(
         .add_attribute("connection_id", &channel.connection_id)
         .add_attribute("port_id", &channel.endpoint.port_id)
         .add_attribute("channel_id", &channel.endpoint.channel_id))
+}
+
+pub fn close(msg: IbcChannelCloseMsg) -> ContractResult<IbcBasicResponse> {
+    match msg {
+        // we do not expect an ICS-999 channel to be closed
+        IbcChannelCloseMsg::CloseInit { .. } => Err(ContractError::UnexpectedChannelClosure),
+
+        // If we're here, something has gone catastrophically wrong on our
+        // counterparty chain. Per the CloseInit handler above, this contract
+        // should never allow its channel to be closed.
+        //
+        // Note: Erroring here would prevent our side of the channel closing,
+        // leading to a situation where the counterparty thinks the channel is
+        // closed, but we think it's still open. To avoid this inconsistency,
+        // we must let the tx go through.
+        //
+        // We probably should delete the ACTIVE_CHANNEL, since the channel is
+        // now closed... However, as we're in a catastrophic situation that
+        // requires admin intervention anyways, let's leave this to the admin.
+        IbcChannelCloseMsg::CloseConfirm { .. } => Ok(IbcBasicResponse::new()),
+    }
 }
 
 fn validate_order_and_version(

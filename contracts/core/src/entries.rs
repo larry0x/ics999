@@ -71,9 +71,9 @@ pub fn ibc_channel_connect(
 pub fn ibc_channel_close(
     _deps: DepsMut,
     _env: Env,
-    _msg: IbcChannelCloseMsg,
+    msg: IbcChannelCloseMsg,
 ) -> ContractResult<IbcBasicResponse> {
-    todo!();
+    ibc::close(msg)
 }
 
 #[entry_point]

@@ -25,6 +25,9 @@ pub enum ContractError {
     ChannelExists {
         connection_id: String,
     },
+
+    #[error("ICS-999 channel may not be closed")]
+    UnexpectedChannelClosure,
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
