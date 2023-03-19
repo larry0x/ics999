@@ -26,5 +26,6 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true, features = ["ibc3"] }
 cw2             = { workspace = true }
 cw-ownable      = { workspace = true }
+cw-storage-plus = { workspace = true }
 one-types       = { workspace = true }
 thiserror       = { workspace = true }

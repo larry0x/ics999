@@ -17,6 +17,7 @@ cosmwasm-schema = "1.2"
 cosmwasm-std    = "1.2"
 cw2             = "1.0"
 cw-ownable      = "0.5"
+cw-storage-plus = "1.0"
 one-core        = { version = "0.0.0", path = "./contracts/core" }
 one-types       = { version = "0.0.0", path = "./packages/types" }
 thiserror       = "1"

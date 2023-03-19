@@ -7,8 +7,10 @@ use cosmwasm_std::{
 use crate::{
     error::ContractResult,
     execute,
+    ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    CONTRACT_NAME, CONTRACT_VERSION,
+    CONTRACT_NAME,
+    CONTRACT_VERSION,
 };
 
 #[entry_point]
@@ -41,20 +43,28 @@ pub fn execute(
 
 #[entry_point]
 pub fn ibc_channel_open(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _msg: IbcChannelOpenMsg,
+    msg: IbcChannelOpenMsg,
 ) -> ContractResult<IbcChannelOpenResponse> {
-    todo!();
+    match msg {
+        IbcChannelOpenMsg::OpenInit {
+            channel,
+        } => ibc::open_init(deps, channel),
+        IbcChannelOpenMsg::OpenTry {
+            channel,
+            counterparty_version,
+        } => ibc::open_try(deps, channel, counterparty_version),
+    }
 }
 
 #[entry_point]
 pub fn ibc_channel_connect(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _msg: IbcChannelConnectMsg,
+    msg: IbcChannelConnectMsg,
 ) -> ContractResult<IbcBasicResponse> {
-    todo!();
+    ibc::open_connect(deps, msg.channel(), msg.counterparty_version())
 }
 
 #[entry_point]

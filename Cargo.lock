@@ -460,6 +460,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-ownable",
+ "cw-storage-plus",
  "cw2",
  "one-types",
  "thiserror",

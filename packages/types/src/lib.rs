@@ -1,7 +1,11 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin, WasmMsg};
+use cosmwasm_std::{Binary, Coin, WasmMsg, IbcOrder};
 
-pub const CHANNEL_VERSION: &str = "ics999-1";
+/// Expected channel packet ordering rule
+pub const ORDER: IbcOrder = IbcOrder::Unordered;
+
+/// Expected channel version string
+pub const VERSION: &str = "ics999-1";
 
 #[cw_serde]
 pub struct Packet {
