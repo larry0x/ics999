@@ -1,0 +1,31 @@
+[package]
+name          = "one-account"
+description   = "ICS-999 interchain account contract"
+version       = { workspace = true }
+authors       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+homepage      = { workspace = true }
+repository    = { workspace = true }
+documentation = { workspace = true }
+keywords      = { workspace = true }
+rust-version  = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["entry"]
+# enable this feature to include instantiate/execute/query etc. exports
+entry = []
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cw2             = { workspace = true }
+cw-ownable      = { workspace = true }
+cw-storage-plus = { workspace = true }
+one-types       = { workspace = true }
+thiserror       = { workspace = true }
