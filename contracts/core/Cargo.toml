@@ -1,6 +1,6 @@
 [package]
-name          = "cw-one"
-description   = "One channel"
+name          = "one-core"
+description   = "ICS-999 core contract"
 version       = { workspace = true }
 authors       = { workspace = true }
 edition       = { workspace = true }
@@ -26,4 +26,5 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true, features = ["ibc3"] }
 cw2             = { workspace = true }
 cw-ownable      = { workspace = true }
+one-types       = { workspace = true }
 thiserror       = { workspace = true }

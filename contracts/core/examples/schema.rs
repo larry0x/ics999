@@ -1,6 +1,6 @@
 use cosmwasm_schema::write_api;
 
-use cw_one::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use one_core::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
 
 fn main() {
     write_api! {
