@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[entry_point]
-pub fn instantaite(
+pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
