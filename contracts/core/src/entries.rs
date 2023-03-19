@@ -17,34 +17,26 @@ use crate::{
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    execute::init(deps, info.sender.as_str(), msg)
+    execute::init(deps, msg)
 }
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _msg: ExecuteMsg,
 ) -> ContractResult<Response> {
-    match msg {
-        ExecuteMsg::UpdateOwnership(action) => execute::update_ownership(
-            deps,
-            &env.block,
-            &info.sender,
-            action,
-        ),
-    }
+    Ok(Response::default())
 }
 
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
         QueryMsg::Config {} => to_binary(&query::config(deps)?),
         QueryMsg::Account {
             connection_id,

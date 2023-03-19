@@ -483,7 +483,6 @@ version = "0.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-ownable",
  "cw-paginate",
  "cw-storage-plus",
  "cw2",
