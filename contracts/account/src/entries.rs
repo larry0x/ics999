@@ -1,8 +1,13 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult, WasmMsg, Binary,
+    entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+    WasmMsg,
 };
 
-use crate::{error::ContractResult, msg::QueryMsg, CONTRACT_NAME, CONTRACT_VERSION};
+use crate::{
+    error::ContractResult,
+    msg::QueryMsg,
+    CONTRACT_NAME, CONTRACT_VERSION,
+};
 
 #[entry_point]
 pub fn instantaite(
