@@ -9,8 +9,8 @@ use crate::{
     execute,
     ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    CONTRACT_NAME,
-    CONTRACT_VERSION,
+    query,
+    CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]
@@ -38,6 +38,29 @@ pub fn execute(
             &info.sender,
             action,
         ),
+    }
+}
+
+#[entry_point]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
+        QueryMsg::Config {} => to_binary(&query::config(deps)?),
+        QueryMsg::Account {
+            connection_id,
+            controller,
+        } => to_binary(&query::account(deps, connection_id, controller)?),
+        QueryMsg::Accounts {
+            start_after,
+            limit,
+        } => to_binary(&query::accounts(deps, start_after, limit)?),
+        QueryMsg::ActiveChannel {
+            connection_id,
+        } => to_binary(&query::active_channel(deps, connection_id)?),
+        QueryMsg::ActiveChannels {
+            start_after,
+            limit,
+        } => to_binary(&query::active_channels(deps, start_after, limit)?),
     }
 }
 
@@ -101,11 +124,4 @@ pub fn ibc_packet_timeout(
     _msg: IbcPacketTimeoutMsg,
 ) -> ContractResult<IbcBasicResponse> {
     todo!();
-}
-
-#[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
-    }
 }

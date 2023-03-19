@@ -219,6 +219,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-paginate"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "add278617f6251be1a35c781eb0fbffd44f899d8bb4dc5a9e420273a90684c4e"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "serde",
+]
+
+[[package]]
 name = "cw-storage-plus"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,6 +471,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-ownable",
+ "cw-paginate",
  "cw-storage-plus",
  "cw2",
  "one-types",
