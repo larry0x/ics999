@@ -1,9 +1,13 @@
 use cosmwasm_std::{Addr, BlockInfo, DepsMut, Response};
 
-use crate::error::ContractResult;
+use crate::{error::ContractResult, msg::InstantiateMsg, state::ACCOUNT_CODE_ID};
 
-pub fn init(deps: DepsMut, owner: &str) -> ContractResult<Response> {
+pub fn init(deps: DepsMut, owner: &str, msg: InstantiateMsg) -> ContractResult<Response> {
     let ownership = cw_ownable::initialize_owner(deps.storage, deps.api, Some(owner))?;
+
+    ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
+
+    // TODO: instantaite the transfer contract
 
     Ok(Response::new()
         .add_attribute("action", "init")

@@ -27,6 +27,12 @@ pub enum Action {
         recipient: Option<String>,
     },
 
+    /// Register an interchain account
+    RegisterAccount {},
+
+    /// Instructs the interchain account to execute a wasm message
+    Execute(WasmMsg),
+
     /// Query a raw key-value pair at a contract
     QueryRaw {
         contract: String,
@@ -38,14 +44,4 @@ pub enum Action {
         contract: String,
         msg: Binary,
     },
-
-    /// Register an interchain account
-    RegisterAccount {
-        /// Wasm bytecode to use for the interchain account.
-        /// If not provided, will use the default.
-        code_id: Option<u64>,
-    },
-
-    /// Instructs the interchain account to execute a wasm message
-    Execute(WasmMsg),
 }
