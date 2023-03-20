@@ -14,7 +14,7 @@ use crate::{
 
 pub const HANDLER: Item<Handler> = Item::new("handler");
 
-pub const ACTION_REPLY_ID: u64 = 1;
+pub const HANDLE_REPLY_ID: u64 = 1;
 
 /// An ICS-999 packet contains one or more `Action`'s that need to be executed
 /// one at a time and atomically.
@@ -147,7 +147,7 @@ impl Handler {
         HANDLER.save(deps.storage, &self)?;
 
         Ok(Response::new()
-            .add_submessage(SubMsg::reply_always(msg, ACTION_REPLY_ID))
+            .add_submessage(SubMsg::reply_always(msg, HANDLE_REPLY_ID))
             .add_attributes(self.into_attributes()))
     }
 
