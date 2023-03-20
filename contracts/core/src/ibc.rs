@@ -1,14 +1,16 @@
 use cosmwasm_std::{
-    to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg,
-    IbcChannelOpenResponse, IbcOrder, IbcQuery, IbcReceiveResponse, PortIdResponse, QuerierWrapper,
-    QueryRequest, Response, Storage, SubMsgResponse, SubMsgResult,
+    from_slice, to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel,
+    IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse,
+    PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResult, WasmMsg,
 };
-use one_types::{Acknowledgment, Packet};
+use one_types::{Acknowledgment, PacketData};
 
 use crate::{
     error::{ContractError, ContractResult},
     handler::Handler,
-    state::{ACCOUNTS, ACTIVE_CHANNELS},
+    msg::ExecuteMsg,
+    state::ACTIVE_CHANNELS,
+    AFTER_ALL_ACTIONS,
 };
 
 pub fn open_init(deps: DepsMut, channel: IbcChannel) -> ContractResult<IbcChannelOpenResponse> {
@@ -80,68 +82,52 @@ pub fn close(msg: IbcChannelCloseMsg) -> ContractResult<IbcBasicResponse> {
 pub fn packet_receive(
     deps: DepsMut,
     env: Env,
-    channel_id: String,
-    mut packet: Packet,
+    packet: IbcPacket,
 ) -> ContractResult<IbcReceiveResponse> {
     // find the connection ID corresponding to the sender channel
-    let connection_id = connection_of_channel(&deps.querier, &channel_id)?;
+    let connection_id = connection_of_channel(&deps.querier, &packet.src.channel_id)?;
 
-    // load the sender's interchain account
-    let host = ACCOUNTS.may_load(deps.storage, (&connection_id, &packet.sender))?;
+    // deserialize packet data
+    let pd: PacketData = from_slice(&packet.data)?;
 
-    // reverse the order of actions, so that we can use pop() to fetch the first
-    // action from the queue
-    packet.actions.reverse();
-
-    let handler = Handler {
-        connection_id,
-        controller: packet.sender,
-        host,
-        action: None,
-        pending_actions: packet.actions,
-        results: vec![],
-    };
-
-    handler.handle_next_action(deps, env).map(into_ibc_receive_resp)
+    Ok(IbcReceiveResponse::new()
+        .add_attribute("action", "packet_receive")
+        .add_attribute("connection_id", &connection_id)
+        .add_attribute("channel_id", &packet.src.channel_id)
+        .add_attribute("sequence", packet.sequence.to_string())
+        .add_submessage(SubMsg::reply_always(
+            WasmMsg::Execute {
+                contract_addr: env.contract.address.into(),
+                msg: to_binary(&ExecuteMsg::Handle {
+                    connection_id,
+                    controller: pd.sender,
+                    actions: pd.actions,
+                })?,
+                funds: vec![],
+            },
+            AFTER_ALL_ACTIONS,
+        )))
 }
 
-pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> ContractResult<Response> {
-    match res {
-        SubMsgResult::Ok(SubMsgResponse {
-            // we don't include events in the acknowledgement, because events
-            // are not part of the block result, i.e. not reached consensus by
-            // validators. there is no guarantee that events are deterministic
-            // (see one of the Juno chain halt exploits).
-            //
-            // in princle, contracts should only have access to data that have
-            // reached consensus by validators.
-            events: _,
-            data,
-        }) => {
-            let mut handler = Handler::load(deps.storage)?;
-
-            // parse the result of the previous action
-            handler.add_result(data)?;
-
-            // handle the next action
-            //
-            // if there is no more action to be executed, this will wite the ack
-            // and return
-            handler.handle_next_action(deps, env)
+pub fn after_all_actions(deps: DepsMut, res: SubMsgResult) -> ContractResult<Response> {
+    let ack = match res {
+        // all actions were successful - write ack
+        SubMsgResult::Ok(_) => {
+            let handler = Handler::load(deps.storage)?;
+            Acknowledgment::Ok(handler.results)
         },
 
-        SubMsgResult::Err(err) => {
-            // delete the handler as it's no longer needed
-            Handler::remove(deps.storage);
+        // one of actions failed
+        SubMsgResult::Err(err) => Acknowledgment::Err(err),
+    };
 
-            // return an err ack
-            Ok(Response::new()
-                .add_attribute("action", "action_failed")
-                .add_attribute("error", &err)
-                // wasmd will save this data as the packet ack
-                .set_data(to_binary(&Acknowledgment::Err(err))?))
-        },
-    }
+    Handler::remove(deps.storage);
+
+    Ok(Response::new()
+        .add_attribute("action", "after_all_actions")
+        // wasmd will interpret this data field as the ack, overriding the ack
+        // emitted in the ibc_packet_receive entry point
+        .set_data(to_binary(&ack)?))
 }
 
 fn validate_order_and_version(
@@ -201,12 +187,4 @@ fn connection_of_channel(querier: &QuerierWrapper, channel_id: &str) -> Contract
     };
 
     Ok(chan.connection_id)
-}
-
-/// Convert a Response to an IbcReceiveResponse
-fn into_ibc_receive_resp(resp: Response) -> IbcReceiveResponse {
-    IbcReceiveResponse::new()
-        .add_submessages(resp.messages)
-        .add_attributes(resp.attributes)
-        .add_events(resp.events)
 }

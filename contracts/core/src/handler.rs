@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, DepsMut, Empty, Env, Response,
-    SubMsg, WasmMsg, StdResult, Storage,
+    StdResult, Storage, SubMsg, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -10,9 +10,8 @@ use one_types::{Acknowledgment, Action, ActionResult};
 use crate::{
     error::{ContractError, ContractResult},
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
+    AFTER_ACTION,
 };
-
-pub const HANDLE_REPLY_ID: u64 = 1;
 
 const HANDLER: Item<Handler> = Item::new("handler");
 
@@ -50,15 +49,28 @@ pub struct Handler {
     ///
     /// Once all actions have finished executing, this enture queue is included
     /// in the packet acknowledgement.
+    ///
+    /// NOTE: we don't include events in the acknowledgement, because events
+    /// are not part of the block result, i.e. not reached consensus by
+    /// validators. there is no guarantee that events are deterministic
+    /// (see one of the Juno chain halt exploits).
+    ///
+    /// in princle, contracts should only have access to data that have reached
+    /// consensus by validators.
     pub results: Vec<ActionResult>,
 }
 
 impl Handler {
-    pub fn new(connection_id: String, controller: String, host: Option<Addr>, actions: Vec<Action>) -> StdResult<Self> {
+    pub fn create(
+        store: &dyn Storage,
+        connection_id: String,
+        controller: String,
+        actions: Vec<Action>,
+    ) -> StdResult<Self> {
         Ok(Self {
+            host: ACCOUNTS.may_load(store, (&connection_id, &controller))?,
             connection_id,
             controller,
-            host,
             action: None,
             pending_actions: actions,
             results: vec![],
@@ -170,12 +182,15 @@ impl Handler {
         self.save(deps.storage)?;
 
         Ok(Response::new()
-            .add_submessage(SubMsg::reply_always(msg, HANDLE_REPLY_ID))
-            .add_attributes(self.into_attributes()))
+            .add_attributes(self.into_attributes())
+            // note that we use reply_on_success here, meaning any one action
+            // fail wil lead to the entire execute::handle method call to fail.
+            // this this atomicity - a desired property
+            .add_submessage(SubMsg::reply_on_success(msg, AFTER_ACTION)))
     }
 
     /// After an action has been executed, parse the response
-    pub fn add_result(&mut self, data: Option<Binary>) -> ContractResult<()> {
+    pub fn handle_result(&mut self, data: Option<Binary>) -> ContractResult<()> {
         // the action that was executed
         let action = self.action.as_ref().expect("missing active action");
 
@@ -185,7 +200,7 @@ impl Handler {
                 amount: _,
                 recipient: _,
             } => {
-                todo!("fungible token transfer is not implemented yet")
+                todo!("fungible token transfer is not implemented yet");
             },
 
             Action::RegisterAccount {

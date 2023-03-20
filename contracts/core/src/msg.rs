@@ -12,12 +12,27 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    /// Execute one or more actions via the specified connection
+    /// Send a packet consisting of a series of actions
     Act {
         connection_id: String,
         actions: Vec<Action>,
         /// How many seconds from how will the packet timeout
         timeout_seconds: Option<u64>,
+    },
+
+    /// Execute a series of actions received in a packet.
+    ///
+    /// Can only be invoked by the contract itself.
+    ///
+    /// NOTE: We have to create an execute method for this instead of handling
+    /// the actions in the `ibc_packet_receive` entry point, because only this
+    /// way we can achieve atomicity - one action fails means all actions fail,
+    /// and no state changes from any action (even those that succeeded) will be
+    /// committed.
+    Handle {
+        connection_id: String,
+        controller: String,
+        actions: Vec<Action>,
     },
 }
 

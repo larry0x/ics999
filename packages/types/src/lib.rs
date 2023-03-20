@@ -8,7 +8,7 @@ pub const ORDER: IbcOrder = IbcOrder::Unordered;
 pub const VERSION: &str = "ics999-1";
 
 #[cw_serde]
-pub struct Packet {
+pub struct PacketData {
     /// The account who sends this packet
     pub sender: String,
 

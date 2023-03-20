@@ -1,18 +1,15 @@
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse,
-    IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse,
-    IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo,
-    Reply, Response, StdResult,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
+    StdResult,
 };
 
 use crate::{
-    error::ContractResult,
-    execute,
-    handler::HANDLE_REPLY_ID,
-    ibc,
+    error::{ContractError, ContractResult},
+    execute, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    query,
-    CONTRACT_NAME, CONTRACT_VERSION,
+    query, AFTER_ACTION, AFTER_ALL_ACTIONS, CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]
@@ -39,13 +36,31 @@ pub fn execute(
             actions,
             timeout_seconds,
         } => execute::act(deps, env, info, connection_id, actions, timeout_seconds),
+        ExecuteMsg::Handle {
+            connection_id,
+            controller,
+            actions,
+        } => {
+            // only the contract itself can invoke this method
+            if info.sender != env.contract.address {
+                return Err(ContractError::Unauthorized);
+            }
+
+            execute::handle(deps, env, connection_id, controller, actions)
+        },
     }
 }
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> ContractResult<Response> {
     match msg.id {
-        HANDLE_REPLY_ID => ibc::after_action(deps, env, msg.result),
+        // after finished executing a single action - update the result, and
+        // move on to the next action
+        AFTER_ACTION => execute::after_action(deps, env, msg.result),
+
+        // after finished executing all actions - write ack and clear up state
+        AFTER_ALL_ACTIONS => ibc::after_all_actions(deps, msg.result),
+
         id => unreachable!("unknown reply ID: `{id}`"),
     }
 }
@@ -113,7 +128,7 @@ pub fn ibc_packet_receive(
     env: Env,
     msg: IbcPacketReceiveMsg,
 ) -> ContractResult<IbcReceiveResponse> {
-    ibc::packet_receive(deps, env, msg.packet.src.channel_id, from_slice(&msg.packet.data)?)
+    ibc::packet_receive(deps, env, msg.packet)
 }
 
 #[entry_point]
@@ -122,7 +137,8 @@ pub fn ibc_packet_ack(
     _env: Env,
     _ack: IbcPacketAckMsg,
 ) -> ContractResult<IbcBasicResponse> {
-    todo!();
+    // TODO
+    Ok(IbcBasicResponse::new())
 }
 
 #[entry_point]
@@ -131,5 +147,6 @@ pub fn ibc_packet_timeout(
     _env: Env,
     _msg: IbcPacketTimeoutMsg,
 ) -> ContractResult<IbcBasicResponse> {
-    todo!();
+    // TODO
+    Ok(IbcBasicResponse::new())
 }
