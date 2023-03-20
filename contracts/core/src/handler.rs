@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, DepsMut, Empty, Env, Response,
-    SubMsg, WasmMsg,
+    SubMsg, WasmMsg, StdResult, Storage,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -12,9 +12,9 @@ use crate::{
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
 };
 
-pub const HANDLER: Item<Handler> = Item::new("handler");
-
 pub const HANDLE_REPLY_ID: u64 = 1;
+
+const HANDLER: Item<Handler> = Item::new("handler");
 
 /// An ICS-999 packet contains one or more `Action`'s that need to be executed
 /// one at a time and atomically.
@@ -54,6 +54,29 @@ pub struct Handler {
 }
 
 impl Handler {
+    pub fn new(connection_id: String, controller: String, host: Option<Addr>, actions: Vec<Action>) -> StdResult<Self> {
+        Ok(Self {
+            connection_id,
+            controller,
+            host,
+            action: None,
+            pending_actions: actions,
+            results: vec![],
+        })
+    }
+
+    pub fn load(store: &dyn Storage) -> StdResult<Self> {
+        HANDLER.load(store)
+    }
+
+    pub fn save(&self, store: &mut dyn Storage) -> StdResult<()> {
+        HANDLER.save(store, self)
+    }
+
+    pub fn remove(store: &mut dyn Storage) {
+        HANDLER.remove(store)
+    }
+
     /// Execute the next action in the queue. Saved the updated handler state.
     pub fn handle_next_action(mut self, deps: DepsMut, env: Env) -> ContractResult<Response> {
         // fetch the first action in the queue
@@ -62,7 +85,7 @@ impl Handler {
         // if there is no more action to execute
         let Some(action) = &self.action else {
             // delete the handler state from contract store
-            HANDLER.remove(deps.storage);
+            Self::remove(deps.storage);
 
             // compose the acknowledgement
             let ack = Acknowledgment::Ok(self.results);
@@ -144,7 +167,7 @@ impl Handler {
             },
         };
 
-        HANDLER.save(deps.storage, &self)?;
+        self.save(deps.storage)?;
 
         Ok(Response::new()
             .add_submessage(SubMsg::reply_always(msg, HANDLE_REPLY_ID))

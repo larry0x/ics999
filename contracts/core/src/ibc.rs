@@ -7,7 +7,7 @@ use one_types::{Acknowledgment, Packet};
 
 use crate::{
     error::{ContractError, ContractResult},
-    handler::{Handler, HANDLER},
+    handler::Handler,
     state::{ACCOUNTS, ACTIVE_CHANNELS},
 };
 
@@ -118,7 +118,7 @@ pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> ContractResul
             events: _,
             data,
         }) => {
-            let mut handler = HANDLER.load(deps.storage)?;
+            let mut handler = Handler::load(deps.storage)?;
 
             // parse the result of the previous action
             handler.add_result(data)?;
@@ -132,7 +132,7 @@ pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> ContractResul
 
         SubMsgResult::Err(err) => {
             // delete the handler as it's no longer needed
-            HANDLER.remove(deps.storage);
+            Handler::remove(deps.storage);
 
             // return an err ack
             Ok(Response::new()
