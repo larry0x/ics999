@@ -10,6 +10,8 @@ use crate::{
     state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, CURRENT_PACKET},
 };
 
+pub const ACTION_REPLY_ID: u64 = 1;
+
 pub fn open_init(deps: DepsMut, channel: IbcChannel) -> ContractResult<IbcChannelOpenResponse> {
     validate_order_and_version(&channel.order, &channel.version, None)?;
 
@@ -161,7 +163,7 @@ pub fn packet_receive(
     CURRENT_PACKET.save(deps.storage, &packet)?;
 
     Ok(IbcReceiveResponse::new()
-        .add_submessage(SubMsg::reply_always(msg, 1)) // TODO: use a constant as the reply id
+        .add_submessage(SubMsg::reply_always(msg, ACTION_REPLY_ID))
         .add_attribute("action", "packet_receive")
         .add_attribute("sender", packet.sender)
         .add_attribute("actions_left", packet.actions.len().to_string()))
