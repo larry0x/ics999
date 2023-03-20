@@ -13,6 +13,11 @@ args = ["fmt", "--all"]
 command = "cargo"
 args = ["test", "--locked"]
 
+[tasks.e2e]
+cwd = "./integration-tests"
+command = "go"
+args = ["test", "./e2e/..."]
+
 [tasks.lint]
 command = "cargo"
 args = ["clippy", "--tests", "--", "-D", "warnings"]

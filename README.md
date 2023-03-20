@@ -22,10 +22,10 @@ Run unit tests:
 cargo make test
 ```
 
-Run integration tests:
+Run end-to-end tests:
 
 ```shell
-cargo make integration-test
+cargo make e2e
 ```
 
 Run linter (clippy):
