@@ -19,6 +19,7 @@ command = "go"
 args = ["test", "./e2e/..."]
 
 [tasks.lint]
+toolchain = "nightly"
 command = "cargo"
 args = ["clippy", "--tests", "--", "-D", "warnings"]
 
