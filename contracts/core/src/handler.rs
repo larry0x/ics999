@@ -1,11 +1,11 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, DepsMut, Empty, Env, Response,
-    StdResult, Storage, SubMsg, WasmMsg,
+    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, CosmosMsg, DepsMut, Empty, Env,
+    Response, StdResult, Storage, SubMsg, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
-use one_types::{Acknowledgment, Action, ActionResult};
+use one_types::{Action, ActionResult};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -94,19 +94,13 @@ impl Handler {
         // fetch the first action in the queue
         self.action = self.pending_actions.pop();
 
-        // if there is no more action to execute
+        // exit successfully there is no more action to execute
         let Some(action) = &self.action else {
-            // delete the handler state from contract store
-            Self::remove(deps.storage);
-
-            // compose the acknowledgement
-            let ack = Acknowledgment::Ok(self.results);
-            let ack_bin = to_binary(&ack)?;
-
-            return Ok(Response::new().set_data(ack_bin));
+            return Ok(Response::new().add_attributes(self.into_attributes()));
         };
 
-        let msg = match action {
+        // convert the action to the appropriate CosmosMsg
+        let msg: CosmosMsg = match action {
             Action::Transfer {
                 amount: _,
                 recipient: _,
@@ -156,6 +150,7 @@ impl Handler {
                     funds: vec![],
                     salt,
                 }
+                .into()
             },
 
             Action::Execute(wasm_msg) => {
@@ -176,6 +171,7 @@ impl Handler {
                     msg: to_binary(&wasm_msg)?,
                     funds,
                 }
+                .into()
             },
         };
 
@@ -207,6 +203,8 @@ impl Handler {
                 ..
             } => {
                 let data = data.expect("missing instantaite response data");
+                // technically this should be Instantiate2 response, but it's
+                // the same as the normal instantite response so this should work
                 let instantiate_res = parse_instantiate_response_data(&data)?;
 
                 self.results.push(ActionResult::RegisterAccount {
