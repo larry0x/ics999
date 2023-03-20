@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    instantiate2_address, to_binary, ChannelResponse, DepsMut, Empty, Env, IbcBasicResponse,
+    instantiate2_address, to_binary, Binary, ChannelResponse, DepsMut, Empty, Env, IbcBasicResponse,
     IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcQuery, IbcReceiveResponse,
     PortIdResponse, QuerierWrapper, QueryRequest, Storage, SubMsg, WasmMsg,
 };
@@ -109,7 +109,7 @@ pub fn packet_receive(
 
             // if a salt is not provided, use the controller account's UTF-8
             // bytes by default
-            let salt = salt.unwrap_or_else(|| packet.sender.as_bytes().into());
+            let salt = salt.unwrap_or_else(|| default_salt(&connection_id, &packet.sender));
 
             // load the one-account contract's code ID and checksum, which is
             // used in Instantiate2 to determine the contract address
@@ -224,4 +224,15 @@ fn connection_of_channel(querier: &QuerierWrapper, channel_id: &str) -> Contract
     };
 
     Ok(chan.connection_id)
+}
+
+/// Generate a salt to be used in Instantiate2, if the user does not provide one.
+///
+/// The salt is the UTF-8 bytes of the connection ID and controller address,
+/// concatenated. This ensures unique salt for each {connection, controller} pair.
+fn default_salt(connection_id: &str, controller: &str) -> Binary {
+    let mut bytes = vec![];
+    bytes.extend(connection_id.as_bytes());
+    bytes.extend(controller.as_bytes());
+    bytes.into()
 }
