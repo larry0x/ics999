@@ -1,4 +1,5 @@
 use cosmwasm_std::{IbcOrder, Instantiate2AddressError, StdError};
+use cw_utils::{ParseReplyError, PaymentError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContractError {
@@ -7,6 +8,12 @@ pub enum ContractError {
 
     #[error(transparent)]
     Instantiate2Address(#[from] Instantiate2AddressError),
+
+    #[error(transparent)]
+    Payment(#[from] PaymentError),
+
+    #[error(transparent)]
+    ParseReply(#[from] ParseReplyError),
 
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {

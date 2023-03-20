@@ -1,16 +1,15 @@
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Binary, ChannelResponse, DepsMut, Empty, Env, IbcBasicResponse,
-    IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcQuery, IbcReceiveResponse,
-    PortIdResponse, QuerierWrapper, QueryRequest, Storage, SubMsg, WasmMsg,
+    to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg,
+    IbcChannelOpenResponse, IbcOrder, IbcQuery, IbcReceiveResponse, PortIdResponse, QuerierWrapper,
+    QueryRequest, Response, Storage, SubMsgResponse, SubMsgResult,
 };
-use one_types::{Action, Packet};
+use one_types::{Acknowledgment, Packet};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, CURRENT_PACKET},
+    handler::{Handler, HANDLER},
+    state::{ACCOUNTS, ACTIVE_CHANNELS},
 };
-
-pub const ACTION_REPLY_ID: u64 = 1;
 
 pub fn open_init(deps: DepsMut, channel: IbcChannel) -> ContractResult<IbcChannelOpenResponse> {
     validate_order_and_version(&channel.order, &channel.version, None)?;
@@ -84,89 +83,65 @@ pub fn packet_receive(
     channel_id: String,
     mut packet: Packet,
 ) -> ContractResult<IbcReceiveResponse> {
+    // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &channel_id)?;
 
-    let ica = ACCOUNTS.may_load(deps.storage, (&connection_id, &packet.sender))?;
+    // load the sender's interchain account
+    let host = ACCOUNTS.may_load(deps.storage, (&connection_id, &packet.sender))?;
 
-    // take out the first action (which we execute right now)
-    // the rest of the actions are to be executed in the reply
-    let action = packet.actions.remove(0);
+    // reverse the order of actions, so that we can use pop() to fetch the first
+    // action from the queue
+    packet.actions.reverse();
 
-    let msg = match action {
-        Action::Transfer {
-            amount: _,
-            recipient: _,
-        } => todo!("fungible token transfer is not implemented yet"),
-
-        Action::RegisterAccount {
-            salt,
-        } => {
-            // only one ICA per controller allowed
-            if ica.is_some() {
-                return Err(ContractError::AccountExists {
-                    connection_id,
-                    controller: packet.sender,
-                })?;
-            }
-
-            // if a salt is not provided, use the controller account's UTF-8
-            // bytes by default
-            let salt = salt.unwrap_or_else(|| default_salt(&connection_id, &packet.sender));
-
-            // load the one-account contract's code ID and checksum, which is
-            // used in Instantiate2 to determine the contract address
-            let code_id = ACCOUNT_CODE_ID.load(deps.storage)?;
-            let code_res = deps.querier.query_wasm_code_info(code_id)?;
-
-            // predict the contract address
-            let addr_raw = instantiate2_address(
-                &code_res.checksum,
-                &deps.api.addr_canonicalize(env.contract.address.as_str())?,
-                &salt,
-            )?;
-            let addr = deps.api.addr_humanize(&addr_raw)?;
-
-            ACCOUNTS.save(deps.storage, (&connection_id, &packet.sender), &addr)?;
-
-            WasmMsg::Instantiate2 {
-                admin: Some(env.contract.address.into()),
-                code_id,
-                label: format!("one-account/{connection_id}/{}", packet.sender),
-                msg: to_binary(&Empty {})?,
-                funds: vec![],
-                salt,
-            }
-        },
-
-        Action::Execute(wasm_msg) => {
-            let Some(addr) = ica else {
-                return Err(ContractError::AccountNotFound {
-                    connection_id,
-                    controller: packet.sender,
-                });
-            };
-
-            let funds = {
-                // TODO: convert funds to their corresponding ibc denoms
-                vec![]
-            };
-
-            WasmMsg::Execute {
-                contract_addr: addr.into(),
-                msg: to_binary(&wasm_msg)?,
-                funds,
-            }
-        },
+    let handler = Handler {
+        connection_id,
+        controller: packet.sender,
+        host,
+        action: None,
+        pending_actions: packet.actions,
+        results: vec![],
     };
 
-    // save the rest of the action queue, to be handled during reply
-    CURRENT_PACKET.save(deps.storage, &packet)?;
+    handler.handle_next_action(deps, env).map(into_ibc_receive_resp)
+}
 
-    Ok(IbcReceiveResponse::new()
-        .add_submessage(SubMsg::reply_always(msg, ACTION_REPLY_ID))
-        .add_attribute("action", "packet_receive")
-        .add_attribute("sender", packet.sender)
-        .add_attribute("actions_left", packet.actions.len().to_string()))
+pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> ContractResult<Response> {
+    match res {
+        SubMsgResult::Ok(SubMsgResponse {
+            // we don't include events in the acknowledgement, because events
+            // are not part of the block result, i.e. not reached consensus by
+            // validators. there is no guarantee that events are deterministic
+            // (see one of the Juno chain halt exploits).
+            //
+            // in princle, contracts should only have access to data that have
+            // reached consensus by validators.
+            events: _,
+            data,
+        }) => {
+            let mut handler = HANDLER.load(deps.storage)?;
+
+            // parse the result of the previous action
+            handler.add_result(data)?;
+
+            // handle the next action
+            //
+            // if there is no more action to be executed, this will wite the ack
+            // and return
+            handler.handle_next_action(deps, env)
+        },
+
+        SubMsgResult::Err(err) => {
+            // delete the handler as it's no longer needed
+            HANDLER.remove(deps.storage);
+
+            // return an err ack
+            Ok(Response::new()
+                .add_attribute("action", "action_failed")
+                .add_attribute("error", &err)
+                // wasmd will save this data as the packet ack
+                .set_data(to_binary(&Acknowledgment::Err(err))?))
+        },
+    }
 }
 
 fn validate_order_and_version(
@@ -228,13 +203,10 @@ fn connection_of_channel(querier: &QuerierWrapper, channel_id: &str) -> Contract
     Ok(chan.connection_id)
 }
 
-/// Generate a salt to be used in Instantiate2, if the user does not provide one.
-///
-/// The salt is the UTF-8 bytes of the connection ID and controller address,
-/// concatenated. This ensures unique salt for each {connection, controller} pair.
-fn default_salt(connection_id: &str, controller: &str) -> Binary {
-    let mut bytes = vec![];
-    bytes.extend(connection_id.as_bytes());
-    bytes.extend(controller.as_bytes());
-    bytes.into()
+/// Convert a Response to an IbcReceiveResponse
+fn into_ibc_receive_resp(resp: Response) -> IbcReceiveResponse {
+    IbcReceiveResponse::new()
+        .add_submessages(resp.messages)
+        .add_attributes(resp.attributes)
+        .add_events(resp.events)
 }

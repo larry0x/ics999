@@ -484,6 +484,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-paginate",
  "cw-storage-plus",
+ "cw-utils",
  "cw2",
  "one-types",
  "thiserror",

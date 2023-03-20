@@ -8,6 +8,7 @@ use cosmwasm_std::{
 use crate::{
     error::ContractResult,
     execute,
+    handler::ACTION_REPLY_ID,
     ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query,
@@ -42,8 +43,11 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(_deps: DepsMut, _env: Env, _msg: Reply) -> ContractResult<Response> {
-    todo!();
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> ContractResult<Response> {
+    match msg.id {
+        ACTION_REPLY_ID => ibc::after_action(deps, env, msg.result),
+        id => unreachable!("unknown reply ID: `{id}`"),
+    }
 }
 
 #[entry_point]

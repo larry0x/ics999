@@ -2,6 +2,7 @@
 pub mod entries;
 pub mod error;
 pub mod execute;
+pub mod handler;
 pub mod ibc;
 pub mod msg;
 pub mod query;

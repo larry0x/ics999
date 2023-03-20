@@ -27,5 +27,6 @@ cosmwasm-std    = { workspace = true, features = ["cosmwasm_1_2", "ibc3"] }
 cw2             = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
+cw-utils        = { workspace = true }
 one-types       = { workspace = true }
 thiserror       = { workspace = true }
