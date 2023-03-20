@@ -33,13 +33,23 @@ pub struct Handler {
     /// The interchain account controlled by the sender
     pub host: Option<Addr>,
 
-    /// The action is to be executed now. None if all actions have been completed.
+    /// The action is to be executed at the current step.
+    /// None means all actions have finished executing.
     pub action: Option<Action>,
 
-    /// The actions that are to be executed later, in reverse order
+    /// The actions that are to be executed later, in reverse order.
+    ///
+    /// At the beginning of each step, we pop the last element and put it in
+    /// `self.action`.
     pub pending_actions: Vec<Action>,
 
     /// The results from executing the earlier actions
+    ///
+    /// At the end of each step, the response data is parsed and pushed into
+    /// this queue.
+    ///
+    /// Once all actions have finished executing, this enture queue is included
+    /// in the packet acknowledgement.
     pub results: Vec<ActionResult>,
 }
 
@@ -56,15 +66,18 @@ impl Handler {
 
             // compose the acknowledgement
             let ack = Acknowledgment::Ok(self.results);
+            let ack_bin = to_binary(&ack)?;
 
-            return Ok(Response::new().set_data(to_binary(&ack)?));
+            return Ok(Response::new().set_data(ack_bin));
         };
 
         let msg = match action {
             Action::Transfer {
                 amount: _,
                 recipient: _,
-            } => todo!("fungible token transfer is not implemented yet"),
+            } => {
+                todo!("fungible token transfer is not implemented yet");
+            },
 
             Action::RegisterAccount {
                 salt,
@@ -77,8 +90,8 @@ impl Handler {
                     })?;
                 }
 
-                // if a salt is not provided, use the controller account's UTF-8
-                // bytes by default
+                // if a salt is not provided, by default use the connection ID
+                // and controller account's UTF-8 bytes
                 let salt = salt
                     .clone()
                     .unwrap_or_else(|| default_salt(&self.connection_id, &self.controller));
