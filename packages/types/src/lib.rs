@@ -10,11 +10,11 @@ pub const VERSION: &str = "ics999-1";
 #[cw_serde]
 pub struct Packet {
     /// The account who sends this packet
-    sender: String,
+    pub sender: String,
 
     /// Actions to take.
     /// The actions will be executed in order and atomically.
-    actions: Vec<Action>,
+    pub actions: Vec<Action>,
 }
 
 #[cw_serde]

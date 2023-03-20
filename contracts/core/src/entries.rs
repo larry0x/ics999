@@ -26,12 +26,18 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: ExecuteMsg,
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> ContractResult<Response> {
-    Ok(Response::default())
+    match msg {
+        ExecuteMsg::Act {
+            connection_id,
+            actions,
+            timeout_seconds,
+        } => execute::act(deps, env, info, connection_id, actions, timeout_seconds),
+    }
 }
 
 #[entry_point]

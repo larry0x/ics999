@@ -1,4 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use one_types::Action;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -10,7 +11,15 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    /// Execute one or more actions via the specified connection
+    Act {
+        connection_id: String,
+        actions: Vec<Action>,
+        /// How many seconds from how will the packet timeout
+        timeout_seconds: Option<u64>,
+    },
+}
 
 #[cw_serde]
 #[derive(QueryResponses)]
