@@ -27,6 +27,7 @@ pub fn act(
     timeout_seconds: Option<u64>,
 ) -> ContractResult<Response> {
     // TODO: validate received coin amount
+    // TODO: make sure the action queue is not empty
 
     Ok(Response::new()
         .add_message(IbcMsg::SendPacket {

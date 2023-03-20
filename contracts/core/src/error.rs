@@ -1,9 +1,12 @@
-use cosmwasm_std::{IbcOrder, StdError};
+use cosmwasm_std::{IbcOrder, Instantiate2AddressError, StdError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
+
+    #[error(transparent)]
+    Instantiate2Address(#[from] Instantiate2AddressError),
 
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {
@@ -20,6 +23,24 @@ pub enum ContractError {
     #[error("an open ICS-999 channel already exists on connection `{connection_id}`")]
     ChannelExists {
         connection_id: String,
+    },
+
+    #[error("no channel found at port `{port_id}` with channel id `{channel_id}`")]
+    ChannelNotFound {
+        port_id: String,
+        channel_id: String,
+    },
+
+    #[error("an interchain account already exists for connection `{connection_id}` and controller `{controller}`")]
+    AccountExists {
+        connection_id: String,
+        controller: String,
+    },
+
+    #[error("no interchain account found at connection `{connection_id}` and controller `{controller}`")]
+    AccountNotFound {
+        connection_id: String,
+        controller: String,
     },
 
     #[error("ICS-999 channel may not be closed")]

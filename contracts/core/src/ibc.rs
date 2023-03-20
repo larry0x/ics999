@@ -1,11 +1,13 @@
 use cosmwasm_std::{
-    DepsMut, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder,
-    Storage,
+    instantiate2_address, to_binary, ChannelResponse, DepsMut, Empty, Env, IbcBasicResponse,
+    IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcQuery, IbcReceiveResponse,
+    PortIdResponse, QuerierWrapper, QueryRequest, Storage, SubMsg, WasmMsg,
 };
+use one_types::{Action, Packet};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::ACTIVE_CHANNELS,
+    state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, CURRENT_PACKET},
 };
 
 pub fn open_init(deps: DepsMut, channel: IbcChannel) -> ContractResult<IbcChannelOpenResponse> {
@@ -52,7 +54,9 @@ pub fn open_connect(
 pub fn close(msg: IbcChannelCloseMsg) -> ContractResult<IbcBasicResponse> {
     match msg {
         // we do not expect an ICS-999 channel to be closed
-        IbcChannelCloseMsg::CloseInit { .. } => Err(ContractError::UnexpectedChannelClosure),
+        IbcChannelCloseMsg::CloseInit {
+            ..
+        } => Err(ContractError::UnexpectedChannelClosure),
 
         // If we're here, something has gone catastrophically wrong on our
         // counterparty chain. Per the CloseInit handler above, this contract
@@ -66,8 +70,101 @@ pub fn close(msg: IbcChannelCloseMsg) -> ContractResult<IbcBasicResponse> {
         // We probably should delete the ACTIVE_CHANNEL, since the channel is
         // now closed... However, as we're in a catastrophic situation that
         // requires admin intervention anyways, let's leave this to the admin.
-        IbcChannelCloseMsg::CloseConfirm { .. } => Ok(IbcBasicResponse::new()),
+        IbcChannelCloseMsg::CloseConfirm {
+            ..
+        } => Ok(IbcBasicResponse::new()),
     }
+}
+
+pub fn packet_receive(
+    deps: DepsMut,
+    env: Env,
+    channel_id: String,
+    mut packet: Packet,
+) -> ContractResult<IbcReceiveResponse> {
+    let connection_id = connection_of_channel(&deps.querier, &channel_id)?;
+
+    let ica = ACCOUNTS.may_load(deps.storage, (&connection_id, &packet.sender))?;
+
+    // take out the first action (which we execute right now)
+    // the rest of the actions are to be executed in the reply
+    let action = packet.actions.remove(0);
+
+    let msg = match action {
+        Action::Transfer {
+            amount: _,
+            recipient: _,
+        } => todo!("fungible token transfer is not implemented yet"),
+
+        Action::RegisterAccount {
+            salt,
+        } => {
+            // only one ICA per controller allowed
+            if ica.is_some() {
+                return Err(ContractError::AccountExists {
+                    connection_id,
+                    controller: packet.sender,
+                })?;
+            }
+
+            // if a salt is not provided, use the controller account's UTF-8
+            // bytes by default
+            let salt = salt.unwrap_or_else(|| packet.sender.as_bytes().into());
+
+            // load the one-account contract's code ID and checksum, which is
+            // used in Instantiate2 to determine the contract address
+            let code_id = ACCOUNT_CODE_ID.load(deps.storage)?;
+            let code_res = deps.querier.query_wasm_code_info(code_id)?;
+
+            // predict the contract address
+            let addr_raw = instantiate2_address(
+                &code_res.checksum,
+                &deps.api.addr_canonicalize(env.contract.address.as_str())?,
+                &salt,
+            )?;
+            let addr = deps.api.addr_humanize(&addr_raw)?;
+
+            ACCOUNTS.save(deps.storage, (&connection_id, &packet.sender), &addr)?;
+
+            WasmMsg::Instantiate2 {
+                admin: Some(env.contract.address.into()),
+                code_id,
+                label: format!("one-account/{connection_id}/{}", packet.sender),
+                msg: to_binary(&Empty {})?,
+                funds: vec![],
+                salt,
+            }
+        },
+
+        Action::Execute(wasm_msg) => {
+            let Some(addr) = ica else {
+                return Err(ContractError::AccountNotFound {
+                    connection_id,
+                    controller: packet.sender,
+                });
+            };
+
+            let funds = {
+                // TODO: convert funds to their corresponding ibc denoms
+                vec![]
+            };
+
+            WasmMsg::Execute {
+                contract_addr: addr.into(),
+                msg: to_binary(&wasm_msg)?,
+                funds,
+            }
+        },
+    };
+
+    // save the rest of the action queue, to be handled during reply
+    CURRENT_PACKET.save(deps.storage, &packet)?;
+
+    Ok(IbcReceiveResponse::new()
+        .add_submessage(SubMsg::reply_always(msg, 1)) // TODO: use a constant as the reply id
+        .add_attribute("action", "packet_receive")
+        .add_attribute("sender", packet.sender)
+        .add_attribute("actions_left", packet.actions.len().to_string()))
 }
 
 fn validate_order_and_version(
@@ -109,4 +206,22 @@ fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> ContractRe
     }
 
     Ok(())
+}
+
+/// Query the connection ID associated with the specified channel
+fn connection_of_channel(querier: &QuerierWrapper, channel_id: &str) -> ContractResult<String> {
+    let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
+        channel_id: channel_id.into(),
+        port_id: None, // default to the contract's own port
+    }))?;
+
+    let Some(chan) = chan_res.channel else {
+        let port_res: PortIdResponse = querier.query(&QueryRequest::Ibc(IbcQuery::PortId {}))?;
+        return Err(ContractError::ChannelNotFound {
+            port_id: port_res.port_id,
+            channel_id: channel_id.into(),
+        });
+    };
+
+    Ok(chan.connection_id)
 }

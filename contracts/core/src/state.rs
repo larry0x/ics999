@@ -1,5 +1,6 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Map, Item};
+use one_types::Packet;
 
 /// Address of the one-transfer contract
 pub const TRANSFER: Item<Addr> = Item::new("transfer");
@@ -17,3 +18,10 @@ pub const ACCOUNTS: Map<(&str, &str), Addr> = Map::new("acct");
 ///
 /// connection_id => channel_id
 pub const ACTIVE_CHANNELS: Map<&str, String> = Map::new("act_chan");
+
+/// The packet that is being processed.
+///
+/// A packet may contain one or more actions, which we execute one at a time.
+/// Each time, we load the packet from storage, pop the first action, and store
+/// the rest. We repeat this until the action queue is empty.
+pub const CURRENT_PACKET: Item<Packet> = Item::new("curr_pkt");

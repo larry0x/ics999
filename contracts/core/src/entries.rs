@@ -1,7 +1,8 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
-    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Response, StdResult,
+    entry_point, from_slice, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse,
+    IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse,
+    IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo,
+    Reply, Response, StdResult,
 };
 
 use crate::{
@@ -38,6 +39,11 @@ pub fn execute(
             timeout_seconds,
         } => execute::act(deps, env, info, connection_id, actions, timeout_seconds),
     }
+}
+
+#[entry_point]
+pub fn reply(_deps: DepsMut, _env: Env, _msg: Reply) -> ContractResult<Response> {
+    todo!();
 }
 
 #[entry_point]
@@ -99,11 +105,11 @@ pub fn ibc_channel_close(
 
 #[entry_point]
 pub fn ibc_packet_receive(
-    _deps: DepsMut,
-    _env: Env,
-    _msg: IbcPacketReceiveMsg,
+    deps: DepsMut,
+    env: Env,
+    msg: IbcPacketReceiveMsg,
 ) -> ContractResult<IbcReceiveResponse> {
-    todo!();
+    ibc::packet_receive(deps, env, msg.packet.src.channel_id, from_slice(&msg.packet.data)?)
 }
 
 #[entry_point]
