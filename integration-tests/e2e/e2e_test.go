@@ -21,11 +21,12 @@ func (suite *testSuite) TestRegisterAccount() {
 	controller := suite.chainA.SenderAccount.GetAddress().String()
 
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
-	act(suite, []types.Action{
+	err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 	})
+	require.NoError(suite.T(), err)
 
 	// check if an account has been registered
 	accountAddr, err := queryAccount(suite.chainB, suite.pathAB.EndpointA.ConnectionID, controller)
@@ -61,7 +62,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	counter := deployCounter(suite.chainB)
 
 	// test 1 - register account and increment counter once in a single packet
-	act(suite, []types.Action{
+	err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -75,9 +76,10 @@ func (suite *testSuite) TestExecuteWasm() {
 			},
 		},
 	})
+	require.NoError(suite.T(), err)
 
 	// check if an account has been registered
-	_, err := queryAccount(suite.chainB, suite.pathAB.EndpointA.ConnectionID, controller)
+	_, err = queryAccount(suite.chainB, suite.pathAB.EndpointA.ConnectionID, controller)
 	require.NoError(suite.T(), err)
 
 	// check if the number has been correctly incremented once
@@ -86,7 +88,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	require.Equal(suite.T(), uint64(1), number)
 
 	// test 2 - increment the number more times in a single packet
-	act(suite, []types.Action{
+	err = act(suite, []types.Action{
 		{
 			Execute: &wasmvmtypes.WasmMsg{
 				Execute: &wasmvmtypes.ExecuteMsg{
@@ -115,6 +117,7 @@ func (suite *testSuite) TestExecuteWasm() {
 			},
 		},
 	})
+	require.NoError(suite.T(), err)
 
 	// check if the number has been correctly incremented two more times
 	number, err = queryNumber(suite.chainB, counter)
@@ -129,7 +132,7 @@ func deployCounter(chain *testChain) sdk.AccAddress {
 }
 
 // act controller on chainA executes some actions on chainB
-func act(suite *testSuite, actions []types.Action) {
+func act(suite *testSuite, actions []types.Action) error {
 	// compose the executeMsg
 	executeMsg, err := json.Marshal(types.CoreExecuteMsg{
 		Act: &types.Act{
@@ -137,20 +140,22 @@ func act(suite *testSuite, actions []types.Action) {
 			Actions:      actions,
 		},
 	})
-	require.NoError(suite.T(), err)
+	if err != nil {
+		return err
+	}
 
 	// executes one-core contract on chainA
-	_, err = suite.chainA.SendMsgs(&wasmtypes.MsgExecuteContract{
+	if _, err = suite.chainA.SendMsgs(&wasmtypes.MsgExecuteContract{
 		Sender:   suite.chainA.SenderAccount.GetAddress().String(),
 		Contract: suite.chainA.coreAddr.String(),
 		Msg:      executeMsg,
 		Funds:    []sdk.Coin{},
-	})
-	require.NoError(suite.T(), err)
+	}); err != nil {
+		return err
+	}
 
 	// relay packet to chainB
-	err = suite.coordinator.RelayAndAckPendingPackets(suite.pathAB)
-	require.NoError(suite.T(), err)
+	return suite.coordinator.RelayAndAckPendingPackets(suite.pathAB)
 }
 
 // queryAccount queries the account owned by the specified controller
