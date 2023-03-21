@@ -94,9 +94,15 @@ impl Handler {
         // fetch the first action in the queue
         self.action = self.pending_actions.pop();
 
-        // exit successfully there is no more action to execute
+        // if there is no more action to execute
+        // delete handler state from contract store, return the results as data
+        // in the response
         let Some(action) = &self.action else {
-            return Ok(Response::new().add_attributes(self.into_attributes()));
+            Handler::remove(deps.storage);
+
+            return Ok(Response::new()
+                .set_data(to_binary(&self.results)?)
+                .add_attributes(self.into_attributes()));
         };
 
         // convert the action to the appropriate CosmosMsg

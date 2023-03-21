@@ -1,13 +1,12 @@
 use cosmwasm_std::{
     from_slice, to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel,
     IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse,
-    PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResult, WasmMsg,
+    PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResult, WasmMsg, SubMsgResponse,
 };
 use one_types::{Acknowledgment, PacketData};
 
 use crate::{
     error::{ContractError, ContractResult},
-    handler::Handler,
     msg::ExecuteMsg,
     state::ACTIVE_CHANNELS,
     AFTER_ALL_ACTIONS,
@@ -111,19 +110,21 @@ pub fn packet_receive(
         )))
 }
 
-pub fn after_all_actions(deps: DepsMut, res: SubMsgResult) -> ContractResult<Response> {
+pub fn after_all_actions(res: SubMsgResult) -> ContractResult<Response> {
     let ack = match res {
         // all actions were successful - write an Ok ack
-        SubMsgResult::Ok(_) => {
-            let handler = Handler::load(deps.storage)?;
-            Acknowledgment::Ok(handler.results)
+        SubMsgResult::Ok(SubMsgResponse {
+            data,
+            ..
+        }) => {
+            let results_bin = data.expect("missing results data");
+            let results = from_slice(&results_bin)?;
+            Acknowledgment::Ok(results)
         },
 
-        // one of actions failed - writee an Err ack
+        // one of actions failed - write an Err ack
         SubMsgResult::Err(err) => Acknowledgment::Err(err),
     };
-
-    Handler::remove(deps.storage);
 
     Ok(Response::new()
         .add_attribute("action", "after_all_actions")

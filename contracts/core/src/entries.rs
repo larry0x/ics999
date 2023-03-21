@@ -59,7 +59,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> ContractResult<Response> {
         AFTER_ACTION => execute::after_action(deps, env, msg.result),
 
         // after finished executing all actions - write ack and clear up state
-        AFTER_ALL_ACTIONS => ibc::after_all_actions(deps, msg.result),
+        AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),
 
         id => unreachable!("unknown reply ID: `{id}`"),
     }
