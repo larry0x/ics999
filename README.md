@@ -1,6 +1,6 @@
 # ICS-999
 
-An all-in-one IBC protocol providing fungible token transfer, interchain account, and (in the future) async query functionalities, implemented in [CosmWasm](https://github.com/CosmWasm/cosmwasm).
+An all-in-one IBC protocol providing fungible token transfer, interchain account, and query functionalities, implemented in [CosmWasm](https://github.com/CosmWasm/cosmwasm).
 
 ## How to Use
 
