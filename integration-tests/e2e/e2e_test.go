@@ -85,32 +85,41 @@ func (suite *testSuite) TestExecuteWasm() {
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), uint64(1), number)
 
-	// // test 2 - increment the number twice in a single packet
-	// act(suite, []types.Action{
-	// 	{
-	// 		Execute: &wasmvmtypes.WasmMsg{
-	// 			Execute: &wasmvmtypes.ExecuteMsg{
-	// 				ContractAddr: counter.String(),
-	// 				Msg:          []byte(`{"increment":{}}`),
-	// 				Funds:        wasmvmtypes.Coins{},
-	// 			},
-	// 		},
-	// 	},
-	// 	{
-	// 		Execute: &wasmvmtypes.WasmMsg{
-	// 			Execute: &wasmvmtypes.ExecuteMsg{
-	// 				ContractAddr: counter.String(),
-	// 				Msg:          []byte(`{"increment":{}}`),
-	// 				Funds:        wasmvmtypes.Coins{},
-	// 			},
-	// 		},
-	// 	},
-	// })
+	// test 2 - increment the number more times in a single packet
+	act(suite, []types.Action{
+		{
+			Execute: &wasmvmtypes.WasmMsg{
+				Execute: &wasmvmtypes.ExecuteMsg{
+					ContractAddr: counter.String(),
+					Msg:          []byte(`{"increment":{}}`),
+					Funds:        wasmvmtypes.Coins{},
+				},
+			},
+		},
+		{
+			Execute: &wasmvmtypes.WasmMsg{
+				Execute: &wasmvmtypes.ExecuteMsg{
+					ContractAddr: counter.String(),
+					Msg:          []byte(`{"increment":{}}`),
+					Funds:        wasmvmtypes.Coins{},
+				},
+			},
+		},
+		{
+			Execute: &wasmvmtypes.WasmMsg{
+				Execute: &wasmvmtypes.ExecuteMsg{
+					ContractAddr: counter.String(),
+					Msg:          []byte(`{"increment":{}}`),
+					Funds:        wasmvmtypes.Coins{},
+				},
+			},
+		},
+	})
 
-	// // check if the number has been correctly incremented two more times
-	// number, err = queryNumber(suite.chainB, counter)
-	// require.NoError(suite.T(), err)
-	// require.Equal(suite.T(), uint64(3), number)
+	// check if the number has been correctly incremented two more times
+	number, err = queryNumber(suite.chainB, counter)
+	require.NoError(suite.T(), err)
+	require.Equal(suite.T(), uint64(4), number)
 }
 
 // deployCounter deploys the mock-counter contract and returns the address
