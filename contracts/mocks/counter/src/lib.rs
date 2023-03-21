@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError,
-    StdResult,
+    StdResult, Coin,
 };
 use cw_storage_plus::Item;
 
@@ -48,18 +48,23 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Increment {} => {
-            NUMBER.update(deps.storage, |number| -> StdResult<_> {
+            let new_number = NUMBER.update(deps.storage, |number| -> StdResult<_> {
                 Ok(number + 1)
             })?;
 
-            Ok(Response::new())
+            Ok(Response::new()
+                .add_attribute("new_number", new_number.to_string())
+                .add_attribute("user", info.sender)
+                .add_attribute("funds", stringify_funds(&info.funds)))
         },
         ExecuteMsg::IncrementButFail {} => {
+            // attempt to increment the number, but we throw an error later so
+            // this should have no effect
             NUMBER.update(deps.storage, |number| -> StdResult<_> {
                 Ok(number + 1)
             })?;
@@ -67,6 +72,14 @@ pub fn execute(
             Err(StdError::generic_err("intentional error instructed by user"))
         },
     }
+}
+
+fn stringify_funds(funds: &[Coin]) -> String {
+    if funds.is_empty() {
+        return "[]".into();
+    }
+
+    funds.iter().map(|coin| coin.to_string()).collect::<Vec<_>>().join(",")
 }
 
 #[entry_point]
