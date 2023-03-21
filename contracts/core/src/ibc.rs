@@ -90,6 +90,8 @@ pub fn packet_receive(
     // deserialize packet data
     let pd: PacketData = from_slice(&packet.data)?;
 
+    // we don't add an ack in this response
+    // the ack will be added in after_all_actions reply (see below)
     Ok(IbcReceiveResponse::new()
         .add_attribute("action", "packet_receive")
         .add_attribute("connection_id", &connection_id)
@@ -111,13 +113,13 @@ pub fn packet_receive(
 
 pub fn after_all_actions(deps: DepsMut, res: SubMsgResult) -> ContractResult<Response> {
     let ack = match res {
-        // all actions were successful - write ack
+        // all actions were successful - write an Ok ack
         SubMsgResult::Ok(_) => {
             let handler = Handler::load(deps.storage)?;
             Acknowledgment::Ok(handler.results)
         },
 
-        // one of actions failed
+        // one of actions failed - writee an Err ack
         SubMsgResult::Err(err) => Acknowledgment::Err(err),
     };
 
