@@ -20,6 +20,11 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
+pub struct IncrementResult {
+    pub new_number: u64,
+}
+
+#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Query the current number stored in the contract
@@ -57,7 +62,12 @@ pub fn execute(
                 Ok(number + 1)
             })?;
 
+            let data = to_binary(&IncrementResult {
+                new_number,
+            })?;
+
             Ok(Response::new()
+                .set_data(data)
                 .add_attribute("new_number", new_number.to_string())
                 .add_attribute("user", info.sender)
                 .add_attribute("funds", stringify_funds(&info.funds)))
