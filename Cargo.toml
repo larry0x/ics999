@@ -1,5 +1,10 @@
 [workspace]
-members = ["contracts/*", "packages/*"]
+members = [
+  "contracts/account",
+  "contracts/core",
+  "contracts/mocks/counter",
+  "packages/*",
+]
 
 [workspace.package]
 version       = "0.0.0"
