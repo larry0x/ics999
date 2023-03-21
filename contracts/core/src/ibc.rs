@@ -1,8 +1,10 @@
 use cosmwasm_std::{
     from_slice, to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel,
     IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse,
-    PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResult, WasmMsg, SubMsgResponse,
+    PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResponse,
+    SubMsgResult, WasmMsg,
 };
+use cw_utils::parse_execute_response_data;
 use one_types::{Acknowledgment, PacketData};
 
 use crate::{
@@ -117,12 +119,16 @@ pub fn after_all_actions(res: SubMsgResult) -> ContractResult<Response> {
             data,
             ..
         }) => {
-            let results_bin = data.expect("missing results data");
-            let results = from_slice(&results_bin)?;
-            Acknowledgment::Result(results)
+            let execute_res_bin = data.expect("missing execute response data");
+            let execute_res = parse_execute_response_data(&execute_res_bin)?;
+
+            let action_res_bin = execute_res.data.expect("missing action results data");
+            let action_res = from_slice(&action_res_bin)?;
+
+            Acknowledgment::Result(action_res)
         },
 
-        // one of actions failed - write an Fail ack
+        // one of actions failed - write an Error ack
         SubMsgResult::Err(err) => Acknowledgment::Error(err),
     };
 
