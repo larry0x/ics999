@@ -38,11 +38,17 @@ pub enum PacketAck {
     /// actions is considered to be failed. We inform the sender contract of the
     /// failure.
     ///
-    /// NOTE: Error messages are not merklized (i.e. validators do not reach
-    /// consensus over the specific error string). Only error codes are
-    /// merklized.
+    /// ** Notes regarding error messages **
     ///
-    /// In wasmd, error messages are redacted: https://github.com/CosmWasm/wasmd/issues/759
+    /// Error messages are not merklized; that is, validators do not reach
+    /// consensus over the specific error string). This means that error
+    /// messages are NOT guaranteed to be deterministic.
+    ///
+    /// Due to this concern, wasmd redacts error messages:
+    ///   https://github.com/CosmWasm/wasmd/issues/759
+    ///
+    /// In principle, contracts should only have access to data that are
+    /// included in the chain's state commitment.
     ///
     /// Therefore, although we return a String here, in reality it will only
     /// include the error code, not the message. It will look something like
@@ -53,6 +59,9 @@ pub enum PacketAck {
     ///   "error": "codespace: wasm, code: 5"
     /// }
     /// ```
+    ///
+    /// This in future, we may consider simply removing the error string here
+    /// for simplicity.
     Error(String),
 }
 
