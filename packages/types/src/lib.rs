@@ -15,16 +15,30 @@ pub struct PacketData {
     /// Actions to take.
     /// The actions will be executed in order and atomically.
     pub actions: Vec<Action>,
+
+    // TODO: add a `reply_on` parameter to let the sender specify under which
+    // situations to give a callback (default to "never")
 }
 
+// ICS-4 recommand acknowldgement envelop format:
+// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
 #[cw_serde]
 pub enum Acknowledgment {
-    /// The response data produced by each action, if all actions were executed
-    /// successfully
-    Ok(Vec<ActionResult>),
+    /// All actions were executed successfully. In this case, we return the
+    /// result of each action.
+    ///
+    /// ICS-4 recommends a raw binary here, but we choose to use `Vec<ActionResult>`
+    /// so that it's easier to consume by the sender contract
+    Result(Vec<ActionResult>),
 
-    /// The error message, if any action failed to execute
-    Err(String),
+    /// One of the actions failed to execute. In this case, the entire queue of
+    /// actions is considered to be failed. We inform the sender contract of the
+    /// failure.
+    ///
+    /// Ideally, we would also like to inform the sender contract of the
+    /// specific error message. Unfortunately, the error message is redacted in
+    /// submesssage replies: https://github.com/CosmWasm/wasmd/issues/759
+    Error(String),
 }
 
 #[cw_serde]

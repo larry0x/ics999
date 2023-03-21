@@ -112,18 +112,18 @@ pub fn packet_receive(
 
 pub fn after_all_actions(res: SubMsgResult) -> ContractResult<Response> {
     let ack = match res {
-        // all actions were successful - write an Ok ack
+        // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {
             data,
             ..
         }) => {
             let results_bin = data.expect("missing results data");
             let results = from_slice(&results_bin)?;
-            Acknowledgment::Ok(results)
+            Acknowledgment::Result(results)
         },
 
-        // one of actions failed - write an Err ack
-        SubMsgResult::Err(err) => Acknowledgment::Err(err),
+        // one of actions failed - write an Fail ack
+        SubMsgResult::Err(err) => Acknowledgment::Error(err),
     };
 
     Ok(Response::new()
