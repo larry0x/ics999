@@ -81,6 +81,18 @@ pub enum Action {
         recipient: Option<String>,
     },
 
+    /// Perform a raw query on a wasm contract
+    QueryRaw {
+        contract: String,
+        key: Binary,
+    },
+
+    /// Perform a smart query on a wasm contract
+    QuerySmart {
+        contract: String,
+        msg: Binary,
+    },
+
     /// Register an interchain account
     RegisterAccount {
         /// The interchain account's address is chosen deterministically using
@@ -111,6 +123,18 @@ pub enum ActionResult {
         /// The recipient address (in case the sender did not provide an address,
         /// they can get it here)
         recipient: String,
+    },
+
+    /// Result of a successful wasm raw query
+    QueryRaw {
+        /// None if the key does not exist
+        value: Option<Binary>,
+    },
+
+    /// Result of a successful wasm smart query
+    QuerySmart {
+        /// The querying contract is responsible for decoding the response
+        response: Binary,
     },
 
     /// Result of a successfully executed `register_account` action.

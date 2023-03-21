@@ -88,12 +88,17 @@ impl Handler {
         HANDLER.load(store)
     }
 
-    pub fn save(&self, store: &mut dyn Storage) -> StdResult<()> {
+    fn save(&self, store: &mut dyn Storage) -> StdResult<()> {
         HANDLER.save(store, self)
     }
 
-    pub fn remove(store: &mut dyn Storage) {
+    fn remove(store: &mut dyn Storage) {
         HANDLER.remove(store)
+    }
+
+    fn save_and_exit(self, store: &mut dyn Storage) -> ContractResult<Response> {
+        self.save(store)?;
+        Ok(Response::new().add_attributes(self.into_attributes()))
     }
 
     /// Execute the next action in the queue. Saved the updated handler state.
@@ -120,6 +125,28 @@ impl Handler {
             } => {
                 todo!("fungible token transfer is not implemented yet");
             },
+
+            Action::QueryRaw {
+                contract,
+                key,
+            } => {
+                self.results.push(ActionResult::QueryRaw {
+                    value: deps.querier.query_wasm_raw(contract, key.clone())?.map(Binary),
+                });
+
+                return self.save_and_exit(deps.storage);
+            },
+
+            Action::QuerySmart {
+                contract,
+                msg,
+            } => {
+                self.results.push(ActionResult::QuerySmart {
+                    response: deps.querier.query_wasm_smart(contract, msg)?,
+                });
+
+                return self.save_and_exit(deps.storage);
+            }
 
             Action::RegisterAccount {
                 salt,
@@ -233,6 +260,8 @@ impl Handler {
                     data: execute_res.data,
                 });
             },
+
+            _ => unreachable!("query actions should not have reply"),
         }
 
         Ok(())
