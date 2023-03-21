@@ -5,7 +5,7 @@ use cosmwasm_std::{
     SubMsgResult, WasmMsg,
 };
 use cw_utils::parse_execute_response_data;
-use one_types::{Acknowledgment, PacketData};
+use one_types::{PacketAck, PacketData};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -113,27 +113,28 @@ pub fn packet_receive(
 }
 
 pub fn after_all_actions(res: SubMsgResult) -> ContractResult<Response> {
-    let ack = match res {
+    let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {
             data,
             ..
         }) => {
-            let execute_res_bin = data.expect("missing execute response data");
-            let execute_res = parse_execute_response_data(&execute_res_bin)?;
+            let execute_res_bin = data.as_ref().expect("missing execute response data");
+            let execute_res = parse_execute_response_data(execute_res_bin)?;
 
             let action_res_bin = execute_res.data.expect("missing action results data");
             let action_res = from_slice(&action_res_bin)?;
 
-            Acknowledgment::Result(action_res)
+            PacketAck::Result(action_res)
         },
 
         // one of actions failed - write an Error ack
-        SubMsgResult::Err(err) => Acknowledgment::Error(err),
+        SubMsgResult::Err(err) => PacketAck::Error(err.clone()),
     };
 
     Ok(Response::new()
         .add_attribute("action", "after_all_actions")
+        .add_attribute("success", res.is_ok().to_string())
         // wasmd will interpret this data field as the ack, overriding the ack
         // emitted in the ibc_packet_receive entry point
         .set_data(to_binary(&ack)?))

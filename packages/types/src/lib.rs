@@ -7,6 +7,7 @@ pub const ORDER: IbcOrder = IbcOrder::Unordered;
 /// Expected channel version string
 pub const VERSION: &str = "ics999-1";
 
+/// ICS-999 packet data structure
 #[cw_serde]
 pub struct PacketData {
     /// The account who sends this packet
@@ -20,10 +21,12 @@ pub struct PacketData {
     // situations to give a callback (default to "never")
 }
 
-// ICS-4 recommand acknowldgement envelop format:
-// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
+/// ICS-999 packet acknowledgement
+///
+/// Related: ICS-4 recommand acknowldgement envelop format:
+/// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
 #[cw_serde]
-pub enum Acknowledgment {
+pub enum PacketAck {
     /// All actions were executed successfully. In this case, we return the
     /// result of each action.
     ///
@@ -35,9 +38,21 @@ pub enum Acknowledgment {
     /// actions is considered to be failed. We inform the sender contract of the
     /// failure.
     ///
-    /// Ideally, we would also like to inform the sender contract of the
-    /// specific error message. Unfortunately, the error message is redacted in
-    /// submesssage replies: https://github.com/CosmWasm/wasmd/issues/759
+    /// NOTE: Error messages are not merklized (i.e. validators do not reach
+    /// consensus over the specific error string). Only error codes are
+    /// merklized.
+    ///
+    /// In wasmd, error messages are redacted: https://github.com/CosmWasm/wasmd/issues/759
+    ///
+    /// Therefore, although we return a String here, in reality it will only
+    /// include the error code, not the message. It will look something like
+    /// this:
+    ///
+    /// ```json
+    /// {
+    ///   "error": "codespace: wasm, code: 5"
+    /// }
+    /// ```
     Error(String),
 }
 

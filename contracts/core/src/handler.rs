@@ -65,12 +65,19 @@ impl Handler {
         store: &dyn Storage,
         connection_id: String,
         controller: String,
-        actions: Vec<Action>,
+        mut actions: Vec<Action>,
     ) -> StdResult<Self> {
+        // load the controller's ICA host, which may or may not have already
+        // been instantiated
+        let host = ACCOUNTS.may_load(store, (&connection_id, &controller))?;
+
+        // reverse the actions, so that we can use pop() to grab the 1st action
+        actions.reverse();
+
         Ok(Self {
-            host: ACCOUNTS.may_load(store, (&connection_id, &controller))?,
             connection_id,
             controller,
+            host,
             action: None,
             pending_actions: actions,
             results: vec![],
