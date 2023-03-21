@@ -4,6 +4,9 @@ artifacts/
 # rust
 target/
 
+# nodejs
+scripts/node_modules/
+
 # editors
 .idea/
 .vscode/
