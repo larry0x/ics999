@@ -208,9 +208,7 @@ pub fn packet_lifecycle_complete(
     ack_bin: Option<Binary>,
 ) -> Result<IbcBasicResponse, ContractError> {
     let packet_data: PacketData = from_slice(&packet.data)?;
-
     let res = build_lifecycle_complete_res(&packet, &packet_data, ack_bin.is_some());
-
     if !packet_data.callback {
         return Ok(res);
     }
