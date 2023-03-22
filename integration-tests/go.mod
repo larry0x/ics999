@@ -7,6 +7,7 @@ require (
 	github.com/CosmWasm/wasmvm v1.2.1
 	github.com/cosmos/cosmos-sdk v0.46.11
 	github.com/cosmos/ibc-go/v6 v6.1.0
+	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.8.2
 )
 
@@ -67,7 +68,6 @@ require (
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
