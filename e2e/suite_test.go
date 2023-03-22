@@ -61,8 +61,9 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 
 	// instantiate one-core contract
 	coreInstantiateMsg, err := json.Marshal(&types.CoreInstantiateMsg{
-		AccountCodeID:  accountStoreRes.CodeID,
-		TransferCodeID: uint64(0), // FIXME: placeholder
+		AccountCodeID:      accountStoreRes.CodeID,
+		TransferCodeID:     uint64(0), // FIXME: placeholder
+		DefaultTimeoutSecs: 600,       // 10 mins
 	})
 	require.NoError(t, err)
 	core := chain.InstantiateContract(coreStoreRes.CodeID, coreInstantiateMsg)

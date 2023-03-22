@@ -7,14 +7,12 @@ use crate::{
     error::ContractError,
     handler::Handler,
     msg::InstantiateMsg,
-    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS},
+    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS},
 };
-
-// should this be a configurable parameter instead?
-pub const DEFAULT_TIMEOUT_SECONDS: u64 = 600;
 
 pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractError> {
     ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
+    DEFAULT_TIMEOUT_SECS.save(deps.storage, &msg.default_timeout_secs)?;
 
     // TODO: instantaite the transfer contract
 
@@ -23,15 +21,23 @@ pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractErro
 
 pub fn act(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     connection_id: String,
     actions: Vec<Action>,
     callback: bool,
-    timeout: IbcTimeout,
+    opt_timeout: Option<IbcTimeout>,
 ) -> Result<Response, ContractError> {
     // TODO: validate received coin amount
     // TODO: make sure the action queue is not empty
+
+    let timeout = match opt_timeout {
+        None => {
+            let default_secs = DEFAULT_TIMEOUT_SECS.load(deps.storage)?;
+            IbcTimeout::with_timestamp(env.block.time.plus_seconds(default_secs))
+        },
+        Some(to) => to,
+    };
 
     Ok(Response::new()
         .add_message(IbcMsg::SendPacket {

@@ -1,8 +1,9 @@
 package types
 
 type CoreInstantiateMsg struct {
-	AccountCodeID  uint64 `json:"account_code_id"`
-	TransferCodeID uint64 `json:"transfer_code_id"`
+	AccountCodeID      uint64 `json:"account_code_id"`
+	TransferCodeID     uint64 `json:"transfer_code_id"`
+	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
 }
 
 type CoreExecuteMsg struct {
@@ -25,8 +26,9 @@ type CoreQueryMsg struct {
 type ConfigQuery struct{}
 
 type ConfigResponse struct {
-	AccountCodeID uint64 `json:"account_code_id"`
-	Transfer      string `json:"transfer"`
+	AccountCodeID      uint64 `json:"account_code_id"`
+	Transfer           string `json:"transfer"`
+	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
 }
 
 type AccountQuery struct {
