@@ -4,64 +4,30 @@ An all-in-one IBC protocol providing fungible token transfer, interchain account
 
 ## How to Use
 
-Install [cargo-make](https://sagiegurari.github.io/cargo-make/):
+Install just: https://github.com/casey/just
 
-```shell
-cargo install --force cargo-make
-```
+Run linter:
 
-Run formatter:
-
-```shell
-cargo make fmt
+```bash
+just clippy
 ```
 
 Run unit tests:
 
-```shell
-cargo make test
+```bash
+just test
 ```
 
 Run end-to-end tests:
 
-```shell
-cargo make e2e
-```
-
-Run linter (clippy):
-
-```shell
-cargo make lint
-```
-
-Check for unused dependencies:
-
-```shell
-cargo make udeps
+```bash
+just e2e
 ```
 
 Compile all contracts using [rust-optimizer](https://github.com/CosmWasm/rust-optimizer):
 
-```shell
-cargo make optimize
-```
-
-Once optimized, verify the wasm binaries are ready to be uploaded to the blockchain:
-
-```shell
-cargo make check
-```
-
-Generate JSON schema for all contracts:
-
-```shell
-cargo make schema
-```
-
-Publish contracts and packages to [crates.io](https://crates.io/):
-
-```shell
-cargo make publish
+```bash
+just optimize
 ```
 
 ## Copyright
