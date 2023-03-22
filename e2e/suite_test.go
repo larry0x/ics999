@@ -15,7 +15,7 @@ import (
 
 	wasmibctesting "github.com/CosmWasm/wasmd/x/wasm/ibctesting"
 
-	"ics999/types"
+	"ics999/e2e/types"
 )
 
 type testSuite struct {

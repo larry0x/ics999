@@ -13,7 +13,7 @@ import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 
-	"ics999/types"
+	"ics999/e2e/types"
 )
 
 // TestRegisterAccount in this test, we do a single action which is to register
