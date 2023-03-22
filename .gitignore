@@ -7,6 +7,10 @@ target/
 # nodejs
 scripts/node_modules/
 
+# schemas don't need to ve committed
+# whoever needs them can generate them on their own
+schemas/
+
 # editors
 .idea/
 .vscode/

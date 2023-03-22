@@ -14,7 +14,6 @@ command = "cargo"
 args = ["test", "--locked"]
 
 [tasks.e2e]
-cwd = "./integration-tests"
 command = "go"
 args = ["test", "./e2e/..."]
 
@@ -44,41 +43,30 @@ script = "cosmwasm-check artifacts/*.wasm"
 
 [tasks.optimize]
 script = """
-if [[ $(arch) == "arm64" ]]; then
-  image="cosmwasm/workspace-optimizer-arm64"
-else
-  image="cosmwasm/workspace-optimizer"
-fi
-
+if [[ $(uname -m) =~ "arm64" ]]; then \
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  ${image}:0.12.12
+  --platform linux/arm64 \
+  cosmwasm/workspace-optimizer-arm64:0.12.12; else
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  --platform linux/amd64 \
+  cosmwasm/workspace-optimizer:0.12.12; fi
 """
 
 [tasks.schema]
 script = """
-rm -rf schemas
-mkdir schemas
-
-contracts=(
-  cw-one
-)
-
+contracts=( one-account one-core )
 for contract in ${contracts[@]}; do
   cargo run --example schema -p $contract
-  mv schema/$contract.json schemas
 done
-
-rm -rf schema
 """
 
 [tasks.publish]
 script = """
-crates=(
-  cw-one
-)
-
+crates=( one-account one-core one-types )
 for crate in ${crates[@]}; do
   cargo publish -p $crate
   echo "💤 sleeping for 30 sec before publishing the next crate..."
