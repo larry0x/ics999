@@ -474,7 +474,10 @@ version = "0.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-paginate",
  "cw-storage-plus",
+ "one-core",
+ "one-types",
  "thiserror",
 ]
 

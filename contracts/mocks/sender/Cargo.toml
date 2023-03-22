@@ -21,5 +21,8 @@ backtraces = ["cosmwasm-std/backtraces"]
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
+cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
+one-core        = { workspace = true, default-features = false }
+one-types       = { workspace = true }
 thiserror       = { workspace = true }
