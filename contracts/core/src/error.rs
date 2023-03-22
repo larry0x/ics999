@@ -50,8 +50,8 @@ pub enum ContractError {
         controller: String,
     },
 
-    #[error("wasm smart contract failed")]
-    SmartQueryFailed,
+    #[error("query failed")]
+    QueryFailed,
 
     #[error("unauthorized")]
     Unauthorized,

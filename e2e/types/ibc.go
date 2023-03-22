@@ -17,26 +17,15 @@ type PacketData struct {
 }
 
 type Action struct {
-	Transfer        *TransferAction        `json:"transfer,omitempty"`
-	QueryRaw        *QueryRawAction        `json:"query_raw,omitempty"`
-	QuerySmart      *QuerySmartAction      `json:"query_smart,omitempty"`
-	RegisterAccount *RegisterAccountAction `json:"register_account,omitempty"`
-	Execute         *wasmvmtypes.CosmosMsg `json:"execute,omitempty"`
+	Transfer        *TransferAction           `json:"transfer,omitempty"`
+	RegisterAccount *RegisterAccountAction    `json:"register_account,omitempty"`
+	Execute         *wasmvmtypes.CosmosMsg    `json:"execute,omitempty"`
+	Query           *wasmvmtypes.QueryRequest `json:"query,omitempty"`
 }
 
 type TransferAction struct {
 	Amount    wasmvmtypes.Coins `json:"amount"`
 	Recipient string            `json:"recipient,omitempty"`
-}
-
-type QueryRawAction struct {
-	Contract string `json:"contract"`
-	Key      []byte `json:"key"`
-}
-
-type QuerySmartAction struct {
-	Contract string `json:"contract"`
-	Msg      []byte `json:"msg"`
 }
 
 type RegisterAccountAction struct {
@@ -50,23 +39,14 @@ type PacketAck struct {
 
 type ActionResult struct {
 	Transfer        *TransferResult        `json:"transfer,omitempty"`
-	QueryRaw        *QueryRawResult        `json:"query_raw,omitempty"`
-	QuerySmart      *QuerySmartResult      `json:"query_smart,omitempty"`
 	RegisterAccount *RegisterAccountResult `json:"register_account,omitempty"`
 	Execute         *ExecuteResult         `json:"execute,omitempty"`
+	Query           *QueryResult           `json:"query,omitempty"`
 }
 
 type TransferResult struct {
 	Amount    wasmvmtypes.Coins `json:"amount"`
 	Recipient string            `json:"recipient"`
-}
-
-type QueryRawResult struct {
-	Value []byte `json:"value,omitempty"`
-}
-
-type QuerySmartResult struct {
-	Response []byte `json:"response"`
 }
 
 type RegisterAccountResult struct {
@@ -75,4 +55,8 @@ type RegisterAccountResult struct {
 
 type ExecuteResult struct {
 	Data []byte `json:"data,omitempty"`
+}
+
+type QueryResult struct {
+	Response []byte `json:"response"`
 }

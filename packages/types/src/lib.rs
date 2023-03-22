@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin, CosmosMsg, IbcOrder};
+use cosmwasm_std::{Binary, Coin, CosmosMsg, IbcOrder, QueryRequest, Empty};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -81,18 +81,6 @@ pub enum Action {
         recipient: Option<String>,
     },
 
-    /// Perform a raw query on a wasm contract
-    QueryRaw {
-        contract: String,
-        key: Binary,
-    },
-
-    /// Perform a smart query on a wasm contract
-    QuerySmart {
-        contract: String,
-        msg: Binary,
-    },
-
     /// Register an interchain account
     RegisterAccount {
         /// The interchain account's address is chosen deterministically using
@@ -108,8 +96,11 @@ pub enum Action {
         salt: Option<Binary>,
     },
 
-    /// Instructs the interchain account to execute a wasm message
+    /// Instructs the interchain account to execute a message
     Execute(CosmosMsg),
+
+    /// Perform a query
+    Query(QueryRequest<Empty>),
 }
 
 #[cw_serde]

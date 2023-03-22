@@ -1,8 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, CosmosMsg,
-    DepsMut, Empty, Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
-    WasmQuery,
+    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
+    Env, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -118,46 +117,12 @@ impl Handler {
         };
 
         // convert the action to the appropriate CosmosMsg
-        let msg: CosmosMsg = match action {
+        let msg = match action {
             Action::Transfer {
                 amount: _,
                 recipient: _,
             } => {
                 todo!("fungible token transfer is not implemented yet");
-            },
-
-            Action::QueryRaw {
-                contract,
-                key,
-            } => {
-                let value = deps.querier.query_wasm_raw(contract, key.clone())?;
-
-                self.results.push(ActionResult::QueryRaw {
-                    value: value.map(Binary),
-                });
-
-                return self.handle_next_action(deps, env);
-            },
-
-            Action::QuerySmart {
-                contract,
-                msg,
-            } => {
-                let query_req = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
-                    contract_addr: contract.clone(),
-                    msg: msg.clone(),
-                });
-                let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
-
-                let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
-                    return Err(ContractError::SmartQueryFailed);
-                };
-
-                self.results.push(ActionResult::QuerySmart {
-                    response,
-                });
-
-                return self.handle_next_action(deps, env);
             },
 
             Action::RegisterAccount {
@@ -202,7 +167,6 @@ impl Handler {
                     funds: vec![],
                     salt,
                 }
-                .into()
             },
 
             Action::Execute(cosmos_msg) => {
@@ -218,7 +182,20 @@ impl Handler {
                     msg: to_binary(&cosmos_msg)?,
                     funds: vec![],
                 }
-                .into()
+            },
+
+            Action::Query(query_req) => {
+                let query_res = deps.querier.raw_query(&to_binary(query_req)?);
+
+                let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
+                    return Err(ContractError::QueryFailed);
+                };
+
+                self.results.push(ActionResult::QuerySmart {
+                    response,
+                });
+
+                return self.handle_next_action(deps, env);
             },
         };
 

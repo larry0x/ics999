@@ -145,15 +145,23 @@ func (suite *testSuite) TestQuery() {
 	// query again
 	ack, err := act(suite, []types.Action{
 		{
-			QueryRaw: &types.QueryRawAction{
-				Contract: suite.chainB.counterAddr.String(),
-				Key:      []byte("number"),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Raw: &wasmvmtypes.RawQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Key:          []byte("number"),
+					},
+				},
 			},
 		},
 		{
-			QuerySmart: &types.QuerySmartAction{
-				Contract: suite.chainB.counterAddr.String(),
-				Msg:      []byte(`{"number":{}}`),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
+				},
 			},
 		},
 		{
@@ -171,23 +179,31 @@ func (suite *testSuite) TestQuery() {
 			},
 		},
 		{
-			QueryRaw: &types.QueryRawAction{
-				Contract: suite.chainB.counterAddr.String(),
-				Key:      []byte("number"),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Raw: &wasmvmtypes.RawQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Key:          []byte("number"),
+					},
+				},
 			},
 		},
 		{
-			QuerySmart: &types.QuerySmartAction{
-				Contract: suite.chainB.counterAddr.String(),
-				Msg:      []byte(`{"number":{}}`),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
+				},
 			},
 		},
 	})
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), []byte("0"), ack.Result[0].QueryRaw.Value)
-	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Result[1].QuerySmart.Response)
-	require.Equal(suite.T(), []byte("1"), ack.Result[4].QueryRaw.Value)
-	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Result[5].QuerySmart.Response)
+	require.Equal(suite.T(), []byte("0"), ack.Result[0].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Result[1].Query.Response)
+	require.Equal(suite.T(), []byte("1"), ack.Result[4].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Result[5].Query.Response)
 }
 
 // act controller on chainA executes some actions on chainB
