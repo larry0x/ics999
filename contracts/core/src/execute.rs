@@ -27,10 +27,12 @@ pub fn act(
     info: MessageInfo,
     connection_id: String,
     actions: Vec<Action>,
-    timeout_seconds: Option<u64>,
+    callback: bool,
+    timeout: IbcTimeout,
 ) -> Result<Response, ContractError> {
     // TODO: validate received coin amount
     // TODO: make sure the action queue is not empty
+    // TODO: save callback
 
     Ok(Response::new()
         .add_message(IbcMsg::SendPacket {
@@ -39,9 +41,7 @@ pub fn act(
                 sender: info.sender.into(),
                 actions,
             })?,
-            timeout: IbcTimeout::with_timestamp(
-                env.block.time.plus_seconds(timeout_seconds.unwrap_or(DEFAULT_TIMEOUT_SECONDS)),
-            ),
+            timeout,
         })
         .add_attribute("action", "act"))
 }

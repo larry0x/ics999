@@ -16,9 +16,6 @@ pub struct PacketData {
     /// Actions to take.
     /// The actions will be executed in order and atomically.
     pub actions: Vec<Action>,
-
-    // TODO: add a `reply_on` parameter to let the sender specify under which
-    // situations to give a callback (default to "never")
 }
 
 /// ICS-999 packet acknowledgement
@@ -147,5 +144,20 @@ pub enum ActionResult {
     Execute {
         /// The data returned by the ICA contract
         data: Option<Binary>,
+    },
+}
+
+/// If the sender contract wishes to receive a callback after the completion of
+/// a packet lifecycle, it must implement this execute message.
+#[cw_serde]
+pub enum SenderExecuteMsg {
+    /// Called by ICS-999 core contract after the completion of a packet
+    /// lifecycle (acknowledged or timed out)
+    PacketCallback {
+        connection_id: String,
+        channel_id: String,
+        sequence: u64,
+        /// The packet acknowledgement. None if the packet has timed out.
+        ack: Option<PacketAck>,
     },
 }

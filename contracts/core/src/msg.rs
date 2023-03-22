@@ -1,4 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::IbcTimeout;
 use one_types::Action;
 
 #[cw_serde]
@@ -14,10 +15,19 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// Send a packet consisting of a series of actions
     Act {
+        /// The connection via which to send the actions.
+        /// The contract will query the appropriate channel.
         connection_id: String,
+
+        /// One or more actions to take
         actions: Vec<Action>,
+
+        /// Whether to request a callback on the completion of packet lifecycle
+        callback: bool,
+
         /// How many seconds from how will the packet timeout
-        timeout_seconds: Option<u64>,
+        /// TODO: make this optional
+        timeout: IbcTimeout,
     },
 
     /// Execute a series of actions received in a packet.
