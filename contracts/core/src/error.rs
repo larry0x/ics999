@@ -50,6 +50,9 @@ pub enum ContractError {
         controller: String,
     },
 
+    #[error("action queue cannot be empty")]
+    EmptyActionQueue,
+
     #[error("query failed")]
     QueryFailed,
 

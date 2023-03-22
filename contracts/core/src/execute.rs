@@ -29,7 +29,10 @@ pub fn act(
     opt_timeout: Option<IbcTimeout>,
 ) -> Result<Response, ContractError> {
     // TODO: validate received coin amount
-    // TODO: make sure the action queue is not empty
+
+    if actions.is_empty() {
+        return Err(ContractError::EmptyActionQueue);
+    }
 
     let timeout = match opt_timeout {
         None => {
