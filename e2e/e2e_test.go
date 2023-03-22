@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
 
 	//lint:ignore SA1019 cosmos-sdk uses deprecated dependency, not my problem
 	"github.com/golang/protobuf/proto"
@@ -22,12 +23,13 @@ import (
 // configuration.
 func (suite *testSuite) TestRegisterAccount() {
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
-	_, ack, err := act(suite, []types.Action{
+	_, ack1, err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 	})
 	require.NoError(suite.T(), err)
+	requirePacketSuccess(suite.T(), ack1)
 
 	// check if an account has been registered, and its address matches that
 	// returned in the packet ack
@@ -37,7 +39,7 @@ func (suite *testSuite) TestRegisterAccount() {
 		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack.Result[0].RegisterAccount.Address, accountAddr.String())
+	require.Equal(suite.T(), ack1.Result[0].RegisterAccount.Address, accountAddr.String())
 
 	// query the account contract info
 	accountInfo := suite.chainB.ContractInfo(accountAddr)
@@ -61,14 +63,21 @@ func (suite *testSuite) TestRegisterAccount() {
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), suite.chainB.coreAddr.String(), ownershipRes.Owner)
 
-	// TODO: make sure account cannot be registered twice
+	// attempt to register account again, should fail
+	_, ack2, err := act(suite, []types.Action{
+		{
+			RegisterAccount: &types.RegisterAccountAction{},
+		},
+	})
+	require.NoError(suite.T(), err)
+	requirePacketFailed(suite.T(), ack2)
 }
 
 // TestExecuteWasm in this test, we deploy the mock-counter contract and use the
 // interchain account to increment its number.
 func (suite *testSuite) TestExecuteWasm() {
 	// test 1 - register account and increment counter once in a single packet
-	_, ack, err := act(suite, []types.Action{
+	_, ack1, err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -83,20 +92,19 @@ func (suite *testSuite) TestExecuteWasm() {
 		},
 	})
 	require.NoError(suite.T(), err)
+	requirePacketSuccess(suite.T(), ack1)
 
 	// check the ack includes the correct result
 	res := wasmtypes.MsgExecuteContractResponse{}
-	err = proto.Unmarshal(ack.Result[1].Execute.Data, &res)
+	err = proto.Unmarshal(ack1.Result[1].Execute.Data, &res)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), []byte(`{"new_number":1}`), res.Data)
 
 	// check if the number has been correctly incremented once
-	number, err := queryNumber(suite.chainB)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), uint64(1), number)
+	requireNumberEqual(suite.T(), suite.chainB, 1)
 
 	// test 2 - increment the number more times in a single packet
-	_, _, err = act(suite, []types.Action{
+	_, ack2, err := act(suite, []types.Action{
 		{
 			Execute: &wasmvmtypes.WasmMsg{
 				Execute: &wasmvmtypes.ExecuteMsg{
@@ -126,11 +134,10 @@ func (suite *testSuite) TestExecuteWasm() {
 		},
 	})
 	require.NoError(suite.T(), err)
+	requirePacketSuccess(suite.T(), ack2)
 
 	// check if the number has been correctly incremented two more times
-	number, err = queryNumber(suite.chainB)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), uint64(4), number)
+	requireNumberEqual(suite.T(), suite.chainB, 4)
 }
 
 func (suite *testSuite) TestQuery() {
@@ -214,17 +221,11 @@ func (suite *testSuite) TestCallback() {
 		},
 	})
 	require.NoError(suite.T(), err)
-
-	// make sure the actions are successful
-	// this is a weird way to match enum variants, but it works
-	require.NotEmpty(suite.T(), ack1.Result)
-	require.Empty(suite.T(), ack1.Error)
+	requirePacketSuccess(suite.T(), ack1)
 
 	// the mock-sender contract should have stored the packet outcome during the
 	// callback. let's grab this outcome
-	outcome1, _ := queryOutcome(suite.chainA, packet1.SourceChannel, packet1.Sequence)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), "successful", outcome1)
+	requireOutcomeEqual(suite.T(), suite.chainA, packet1.SourceChannel, packet1.Sequence, "successful")
 
 	// do the same thing but with an intentionally failed packet
 	packet2, ack2, err := act(suite, []types.Action{
@@ -239,16 +240,13 @@ func (suite *testSuite) TestCallback() {
 		},
 	})
 	require.NoError(suite.T(), err)
-
-	// make sure the action indeed failed
-	require.Empty(suite.T(), ack2.Result)
-	require.NotEmpty(suite.T(), ack2.Error)
+	requirePacketFailed(suite.T(), ack2)
 
 	// mock-sender should have recorded the correct packet outcome
-	outcome2, _ := queryOutcome(suite.chainA, packet2.SourceChannel, packet2.Sequence)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), "failed", outcome2)
+	requireOutcomeEqual(suite.T(), suite.chainA, packet2.SourceChannel, packet2.Sequence, "failed")
 }
+
+// ----------------------------- helper functions ------------------------------
 
 // act controller on chainA executes some actions on chainB
 func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
@@ -311,9 +309,30 @@ func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAdd
 	return accountAddr, nil
 }
 
-// queryOutcome queries the mock-sender contract for the outcome of a packet
-// that it stores
-func queryOutcome(chain *testChain, channelID string, sequence uint64) (string, error) {
+func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
+	require.NotEmpty(t, ack.Result)
+	require.Empty(t, ack.Error)
+}
+
+func requirePacketFailed(t *testing.T, ack *types.PacketAck) {
+	require.Empty(t, ack.Result)
+	require.NotEmpty(t, ack.Error)
+}
+
+func requireNumberEqual(t *testing.T, chain *testChain, expNumber uint64) {
+	numberRes := types.NumberResponse{}
+	err := chain.SmartQuery(
+		chain.counterAddr.String(),
+		&types.CounterQueryMsg{
+			Number: &types.NumberQuery{},
+		},
+		&numberRes,
+	)
+	require.NoError(t, err)
+	require.Equal(t, expNumber, numberRes.Number)
+}
+
+func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, sequence uint64, expOutcome string) {
 	outcomeRes := types.OutcomeResponse{}
 	err := chain.SmartQuery(
 		chain.senderAddr.String(),
@@ -325,18 +344,6 @@ func queryOutcome(chain *testChain, channelID string, sequence uint64) (string, 
 		},
 		&outcomeRes,
 	)
-	return outcomeRes.Outcome, err
-}
-
-// queryNumber queries the mock-counter contract for the number it stores
-func queryNumber(chain *testChain) (uint64, error) {
-	numberRes := types.NumberResponse{}
-	err := chain.SmartQuery(
-		chain.counterAddr.String(),
-		&types.CounterQueryMsg{
-			Number: &types.NumberQuery{},
-		},
-		&numberRes,
-	)
-	return numberRes.Number, err
+	require.NoError(t, err)
+	require.Equal(t, expOutcome, outcomeRes.Outcome)
 }
