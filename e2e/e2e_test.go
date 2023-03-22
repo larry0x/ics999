@@ -248,7 +248,6 @@ func (suite *testSuite) TestCallback() {
 
 // ----------------------------- helper functions ------------------------------
 
-// act controller on chainA executes some actions on chainB
 func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
 	// compose the executeMsg
 	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
@@ -285,7 +284,6 @@ func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types
 	return packet, ack, nil
 }
 
-// queryAccount queries the account owned by the specified controller
 func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAddress, error) {
 	accountRes := types.AccountResponse{}
 	if err := chain.SmartQuery(
