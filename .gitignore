@@ -11,6 +11,9 @@ scripts/node_modules/
 # whoever needs them can generate them on their own
 schemas/
 
+# some data and notes while doing tests
+testdata/
+
 # editors
 .idea/
 .vscode/
