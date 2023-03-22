@@ -242,11 +242,11 @@ func (suite *testSuite) TestCallback() {
 	require.NotEmpty(suite.T(), ack1.Result)
 	require.Empty(suite.T(), ack1.Error)
 
-	// the mock-sender contract should have stored the ack during the callback.
-	// let's grab this callback
-	callbackAck1, _ := queryAck(suite.chainA, packet1.SourceChannel, packet1.Sequence)
+	// the mock-sender contract should have stored the packet outcome during the
+	// callback. let's grab this outcome
+	outcome1, _ := queryOutcome(suite.chainA, packet1.SourceChannel, packet1.Sequence)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack1, callbackAck1)
+	require.Equal(suite.T(), "successful", outcome1)
 
 	// do the same thing but with an intentionally failed packet
 	packet2, ack2, err := act(suite, []types.Action{
@@ -268,10 +268,10 @@ func (suite *testSuite) TestCallback() {
 	require.Empty(suite.T(), ack2.Result)
 	require.NotEmpty(suite.T(), ack2.Error)
 
-	// mock-sender should have recorded the correct error ack
-	callbackAck2, _ := queryAck(suite.chainA, packet2.SourceChannel, packet2.Sequence)
+	// mock-sender should have recorded the correct packet outcome
+	outcome2, _ := queryOutcome(suite.chainA, packet2.SourceChannel, packet2.Sequence)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack2, callbackAck2)
+	require.Equal(suite.T(), "failed", outcome2)
 }
 
 // act controller on chainA executes some actions on chainB
@@ -335,20 +335,21 @@ func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAdd
 	return accountAddr, nil
 }
 
-// queryAck queries the mock-sender contract for the ack it stores
-func queryAck(chain *testChain, channelID string, sequence uint64) (*types.PacketAck, error) {
-	ackRes := types.AckResponse{}
+// queryOutcome queries the mock-sender contract for the outcome of a packet
+// that it stores
+func queryOutcome(chain *testChain, channelID string, sequence uint64) (string, error) {
+	outcomeRes := types.OutcomeResponse{}
 	err := chain.SmartQuery(
 		chain.senderAddr.String(),
 		&types.SenderQueryMsg{
-			Ack: &types.AckQuery{
+			Outcome: &types.OutcomeQuery{
 				ChannelID: channelID,
 				Sequence:  sequence,
 			},
 		},
-		&ackRes,
+		&outcomeRes,
 	)
-	return &ackRes.Ack, err
+	return outcomeRes.Outcome, err
 }
 
 // queryNumber queries the mock-counter contract for the number it stores

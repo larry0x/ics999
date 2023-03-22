@@ -1,3 +1,5 @@
+use std::fmt;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, IbcTimeout, MessageInfo, Response,
@@ -9,8 +11,29 @@ use one_types::{Action, PacketAck};
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
 
-// (channel_id, sequence) => ack
-pub const ACKS: Map<(&str, u64), PacketAck> = Map::new("acks");
+// we save the outcome of the packet in contract store during callbacks
+// we then verify the outcomes are correct
+//
+// (channel_id, sequence) => PacketOutcome
+pub const OUTCOMES: Map<(&str, u64), PacketOutcome> = Map::new("outcomes");
+
+#[cw_serde]
+pub enum PacketOutcome {
+    Successful,
+    Failed,
+    TimedOut,
+}
+
+impl fmt::Display for PacketOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PacketOutcome::Successful => "successful",
+            PacketOutcome::Failed => "failed",
+            PacketOutcome::TimedOut => "timed_out",
+        };
+        write!(f, "{s}")
+    }
+}
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -38,25 +61,25 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Query a single packet acknowledgement
-    #[returns(AckResponse)]
-    Ack {
+    #[returns(OutcomeResponse)]
+    Outcome {
         channel_id: String,
         sequence: u64,
     },
 
     /// Iterate all stored packet acknowledgements
-    #[returns(Vec<AckResponse>)]
-    Acks {
+    #[returns(Vec<OutcomeResponse>)]
+    Outcomes {
         start_after: Option<(String, u64)>,
         limit: Option<u32>,
     },
 }
 
 #[cw_serde]
-pub struct AckResponse {
+pub struct OutcomeResponse {
     channel_id: String,
     sequence: u64,
-    ack: PacketAck,
+    outcome: PacketOutcome,
 }
 
 #[entry_point]
@@ -108,15 +131,21 @@ pub fn execute(
             sequence,
             ack: ack_opt,
         } => {
-            if let Some(ack) = &ack_opt {
-                ACKS.save(deps.storage, (&channel_id, sequence), ack)?;
-            }
+            let outcome = match ack_opt {
+                Some(ack) => match ack {
+                    PacketAck::Result(_) => PacketOutcome::Successful,
+                    PacketAck::Error(_) => PacketOutcome::Failed,
+                },
+                None => PacketOutcome::TimedOut,
+            };
+
+            OUTCOMES.save(deps.storage, (&channel_id, sequence), &outcome)?;
 
             Ok(Response::new()
                 .add_attribute("method", "packet_callback")
                 .add_attribute("channel_id", channel_id)
                 .add_attribute("sequence", sequence.to_string())
-                .add_attribute("acknowledged", ack_opt.is_some().to_string()))
+                .add_attribute("outcome", outcome.to_string()))
         },
     }
 }
@@ -124,18 +153,19 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Ack {
+        QueryMsg::Outcome {
             channel_id,
             sequence,
         } => {
-            let res = AckResponse {
-                ack: ACKS.load(deps.storage, (&channel_id, sequence))?,
+            let res = OutcomeResponse {
+                outcome: OUTCOMES.load(deps.storage, (&channel_id, sequence))?,
                 channel_id,
                 sequence,
             };
             to_binary(&res)
         },
-        QueryMsg::Acks {
+
+        QueryMsg::Outcomes {
             start_after,
             limit,
         } => {
@@ -143,15 +173,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 .as_ref()
                 .map(|(chan_id, seq)| Bound::exclusive((chan_id.as_str(), *seq)));
             let res = paginate_map(
-                &ACKS,
+                &OUTCOMES,
                 deps.storage,
                 start,
                 limit,
-                |(channel_id, sequence), ack| -> StdResult<_> {
-                    Ok(AckResponse {
+                |(channel_id, sequence), outcome| -> StdResult<_> {
+                    Ok(OutcomeResponse {
                         channel_id,
                         sequence,
-                        ack,
+                        outcome,
                     })
                 },
             )?;
