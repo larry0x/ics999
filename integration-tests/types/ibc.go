@@ -21,7 +21,7 @@ type Action struct {
 	QueryRaw        *QueryRawAction        `json:"query_raw,omitempty"`
 	QuerySmart      *QuerySmartAction      `json:"query_smart,omitempty"`
 	RegisterAccount *RegisterAccountAction `json:"register_account,omitempty"`
-	Execute         *wasmvmtypes.WasmMsg   `json:"execute,omitempty"`
+	Execute         *wasmvmtypes.CosmosMsg `json:"execute,omitempty"`
 }
 
 type TransferAction struct {

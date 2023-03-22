@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin, WasmMsg, IbcOrder};
+use cosmwasm_std::{Binary, Coin, CosmosMsg, IbcOrder};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -109,7 +109,7 @@ pub enum Action {
     },
 
     /// Instructs the interchain account to execute a wasm message
-    Execute(WasmMsg),
+    Execute(CosmosMsg),
 }
 
 #[cw_serde]
