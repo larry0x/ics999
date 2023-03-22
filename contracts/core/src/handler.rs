@@ -1,14 +1,15 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, CosmosMsg, DepsMut, Empty, Env,
-    Response, StdResult, Storage, SubMsg, WasmMsg,
+    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, CosmosMsg,
+    DepsMut, Empty, Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    WasmQuery,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use one_types::{Action, ActionResult};
 
 use crate::{
-    error::{ContractError, ContractResult},
+    error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
     AFTER_ACTION,
 };
@@ -96,13 +97,12 @@ impl Handler {
         HANDLER.remove(store)
     }
 
-    fn save_and_exit(self, store: &mut dyn Storage) -> ContractResult<Response> {
-        self.save(store)?;
-        Ok(Response::new().add_attributes(self.into_attributes()))
-    }
-
     /// Execute the next action in the queue. Saved the updated handler state.
-    pub fn handle_next_action(mut self, deps: DepsMut, env: Env) -> ContractResult<Response> {
+    pub fn handle_next_action(
+        mut self,
+        deps: DepsMut,
+        env: Env,
+    ) -> Result<Response, ContractError> {
         // fetch the first action in the queue
         self.action = self.pending_actions.pop();
 
@@ -130,23 +130,35 @@ impl Handler {
                 contract,
                 key,
             } => {
+                let value = deps.querier.query_wasm_raw(contract, key.clone())?;
+
                 self.results.push(ActionResult::QueryRaw {
-                    value: deps.querier.query_wasm_raw(contract, key.clone())?.map(Binary),
+                    value: value.map(Binary),
                 });
 
-                return self.save_and_exit(deps.storage);
+                return self.handle_next_action(deps, env);
             },
 
             Action::QuerySmart {
                 contract,
                 msg,
             } => {
+                let query_req = QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
+                    contract_addr: contract.clone(),
+                    msg: msg.clone(),
+                });
+                let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
+
+                let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
+                    return Err(ContractError::SmartQueryFailed);
+                };
+
                 self.results.push(ActionResult::QuerySmart {
-                    response: deps.querier.query_wasm_smart(contract, msg)?,
+                    response,
                 });
 
-                return self.save_and_exit(deps.storage);
-            }
+                return self.handle_next_action(deps, env);
+            },
 
             Action::RegisterAccount {
                 salt,
@@ -226,7 +238,7 @@ impl Handler {
     }
 
     /// After an action has been executed, parse the response
-    pub fn handle_result(&mut self, data: Option<Binary>) -> ContractResult<()> {
+    pub fn handle_result(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
         // the action that was executed
         let action = self.action.as_ref().expect("missing active action");
 

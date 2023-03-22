@@ -7,14 +7,12 @@ use cosmwasm_std::{
 use cw_utils::parse_execute_response_data;
 use one_types::{PacketAck, PacketData};
 
-use crate::{
-    error::{ContractError, ContractResult},
-    msg::ExecuteMsg,
-    state::ACTIVE_CHANNELS,
-    AFTER_ALL_ACTIONS,
-};
+use crate::{error::ContractError, msg::ExecuteMsg, state::ACTIVE_CHANNELS, AFTER_ALL_ACTIONS};
 
-pub fn open_init(deps: DepsMut, channel: IbcChannel) -> ContractResult<IbcChannelOpenResponse> {
+pub fn open_init(
+    deps: DepsMut,
+    channel: IbcChannel,
+) -> Result<IbcChannelOpenResponse, ContractError> {
     validate_order_and_version(&channel.order, &channel.version, None)?;
 
     // only one active ICS-999 channel per connection
@@ -31,7 +29,7 @@ pub fn open_try(
     deps: DepsMut,
     channel: IbcChannel,
     counterparty_version: String,
-) -> ContractResult<IbcChannelOpenResponse> {
+) -> Result<IbcChannelOpenResponse, ContractError> {
     validate_order_and_version(&channel.order, &channel.version, Some(&counterparty_version))?;
 
     assert_unique_channel(deps.storage, &channel.connection_id)?;
@@ -43,7 +41,7 @@ pub fn open_connect(
     deps: DepsMut,
     channel: &IbcChannel,
     counterparty_version: Option<&str>,
-) -> ContractResult<IbcBasicResponse> {
+) -> Result<IbcBasicResponse, ContractError> {
     validate_order_and_version(&channel.order, &channel.version, counterparty_version)?;
 
     ACTIVE_CHANNELS.save(deps.storage, &channel.connection_id, &channel.endpoint.channel_id)?;
@@ -55,7 +53,7 @@ pub fn open_connect(
         .add_attribute("channel_id", &channel.endpoint.channel_id))
 }
 
-pub fn close(msg: IbcChannelCloseMsg) -> ContractResult<IbcBasicResponse> {
+pub fn close(msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse, ContractError> {
     match msg {
         // we do not expect an ICS-999 channel to be closed
         IbcChannelCloseMsg::CloseInit {
@@ -84,7 +82,7 @@ pub fn packet_receive(
     deps: DepsMut,
     env: Env,
     packet: IbcPacket,
-) -> ContractResult<IbcReceiveResponse> {
+) -> Result<IbcReceiveResponse, ContractError> {
     // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &packet.src.channel_id)?;
 
@@ -112,7 +110,7 @@ pub fn packet_receive(
         )))
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> ContractResult<Response> {
+pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {
@@ -144,7 +142,7 @@ fn validate_order_and_version(
     order: &IbcOrder,
     version: &str,
     counterparty_version: Option<&str>,
-) -> ContractResult<()> {
+) -> Result<(), ContractError> {
     if *order != one_types::ORDER {
         return Err(ContractError::IncorrectOrder {
             actual: order.clone(),
@@ -171,7 +169,7 @@ fn validate_order_and_version(
     Ok(())
 }
 
-fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> ContractResult<()> {
+fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<(), ContractError> {
     if ACTIVE_CHANNELS.has(store, connection_id) {
         return Err(ContractError::ChannelExists {
             connection_id: connection_id.into(),
@@ -182,7 +180,10 @@ fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> ContractRe
 }
 
 /// Query the connection ID associated with the specified channel
-fn connection_of_channel(querier: &QuerierWrapper, channel_id: &str) -> ContractResult<String> {
+fn connection_of_channel(
+    querier: &QuerierWrapper,
+    channel_id: &str,
+) -> Result<String, ContractError> {
     let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
         channel_id: channel_id.into(),
         port_id: None, // default to the contract's own port

@@ -50,11 +50,12 @@ pub enum ContractError {
         controller: String,
     },
 
+    #[error("wasm smart contract failed")]
+    SmartQueryFailed,
+
     #[error("unauthorized")]
     Unauthorized,
 
     #[error("ICS-999 channel may not be closed")]
     UnexpectedChannelClosure,
 }
-
-pub type ContractResult<T> = Result<T, ContractError>;

@@ -6,7 +6,7 @@ use cosmwasm_std::{
 };
 
 use crate::{
-    error::{ContractError, ContractResult},
+    error::ContractError,
     execute, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query, AFTER_ACTION, AFTER_ALL_ACTIONS, CONTRACT_NAME, CONTRACT_VERSION,
@@ -18,7 +18,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> ContractResult<Response> {
+) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     execute::init(deps, msg)
 }
@@ -29,7 +29,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> ContractResult<Response> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Act {
             connection_id,
@@ -52,7 +52,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> ContractResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         // after finished executing a single action - update the result, and
         // move on to the next action
@@ -92,7 +92,7 @@ pub fn ibc_channel_open(
     deps: DepsMut,
     _env: Env,
     msg: IbcChannelOpenMsg,
-) -> ContractResult<IbcChannelOpenResponse> {
+) -> Result<IbcChannelOpenResponse, ContractError> {
     match msg {
         IbcChannelOpenMsg::OpenInit {
             channel,
@@ -109,7 +109,7 @@ pub fn ibc_channel_connect(
     deps: DepsMut,
     _env: Env,
     msg: IbcChannelConnectMsg,
-) -> ContractResult<IbcBasicResponse> {
+) -> Result<IbcBasicResponse, ContractError> {
     ibc::open_connect(deps, msg.channel(), msg.counterparty_version())
 }
 
@@ -118,7 +118,7 @@ pub fn ibc_channel_close(
     _deps: DepsMut,
     _env: Env,
     msg: IbcChannelCloseMsg,
-) -> ContractResult<IbcBasicResponse> {
+) -> Result<IbcBasicResponse, ContractError> {
     ibc::close(msg)
 }
 
@@ -127,7 +127,7 @@ pub fn ibc_packet_receive(
     deps: DepsMut,
     env: Env,
     msg: IbcPacketReceiveMsg,
-) -> ContractResult<IbcReceiveResponse> {
+) -> Result<IbcReceiveResponse, ContractError> {
     ibc::packet_receive(deps, env, msg.packet)
 }
 
@@ -136,7 +136,7 @@ pub fn ibc_packet_ack(
     _deps: DepsMut,
     _env: Env,
     _ack: IbcPacketAckMsg,
-) -> ContractResult<IbcBasicResponse> {
+) -> Result<IbcBasicResponse, ContractError> {
     // TODO
     Ok(IbcBasicResponse::new())
 }
@@ -146,7 +146,7 @@ pub fn ibc_packet_timeout(
     _deps: DepsMut,
     _env: Env,
     _msg: IbcPacketTimeoutMsg,
-) -> ContractResult<IbcBasicResponse> {
+) -> Result<IbcBasicResponse, ContractError> {
     // TODO
     Ok(IbcBasicResponse::new())
 }
