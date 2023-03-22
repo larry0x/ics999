@@ -95,6 +95,7 @@ pub fn execute(
                     msg: to_binary(&one_core::msg::ExecuteMsg::Act {
                         connection_id,
                         actions,
+                        // yes we always want the callback
                         callback: true,
                         timeout: IbcTimeout::with_timestamp(Timestamp::from_seconds(9999999999)), // FIXME: change to None
                     })?,

@@ -1,5 +1,49 @@
 package types
 
+// -------------------------------- mock-sender --------------------------------
+
+type SenderInstantiateMsg struct {
+	OneCore string `json:"one_core"`
+}
+
+type SenderExecuteMsg struct {
+	Send           *Send           `json:"send,omitempty"`
+	PacketCallback *PacketCallback `json:"packet_callback,omitempty"`
+}
+
+type Send struct {
+	ConnectionID string   `json:"connection_id"`
+	Actions      []Action `json:"actions"`
+}
+
+type PacketCallback struct {
+	ChannelID string     `json:"channel_id"`
+	Sequence  uint64     `json:"sequence"`
+	Ack       *PacketAck `json:"act,omitempty"`
+}
+
+type SenderQueryMsg struct {
+	Ack *AckQuery `json:"ack,omitempty"`
+
+	// no idea how to write the Acks query in Golang
+	// specically the Option<(String, u64)>
+	// Golang slices can't have two different types?
+	// anyways, we don't use it in tests
+}
+
+type AckQuery struct {
+	ChannelID string `json:"channel_id"`
+	Sequence  uint64 `json:"sequence"`
+}
+
+type AckResponse struct {
+	ChannelID string    `json:"channel_id"`
+	Sequence  uint64    `json:"sequence"`
+	Ack       PacketAck `json:"ack"`
+}
+
+// ------------------------------- mock-counter --------------------------------
+
 type CounterExecuteMsg struct {
 	Increment        *Increment        `json:"increment,omitempty"`
 	IncrementButFail *IncrementButFail `json:"increment_but_fail,omitempty"`

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -21,7 +22,7 @@ import (
 // configuration.
 func (suite *testSuite) TestRegisterAccount() {
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
-	ack, err := act(suite, []types.Action{
+	_, ack, err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -33,7 +34,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	accountAddr, err := queryAccount(
 		suite.chainB,
 		suite.pathAB.EndpointA.ConnectionID,
-		suite.chainA.SenderAccount.GetAddress().String(),
+		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), ack.Result[0].RegisterAccount.Address, accountAddr.String())
@@ -44,7 +45,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	require.Equal(suite.T(), suite.chainB.coreAddr.String(), accountInfo.Admin)
 	require.Equal(
 		suite.T(),
-		fmt.Sprintf("one-account/%s/%s", suite.pathAB.EndpointB.ConnectionID, suite.chainA.SenderAccount.GetAddress().String()),
+		fmt.Sprintf("one-account/%s/%s", suite.pathAB.EndpointB.ConnectionID, suite.chainA.senderAddr.String()),
 		accountInfo.Label,
 	)
 
@@ -67,7 +68,7 @@ func (suite *testSuite) TestRegisterAccount() {
 // interchain account to increment its number.
 func (suite *testSuite) TestExecuteWasm() {
 	// test 1 - register account and increment counter once in a single packet
-	ack, err := act(suite, []types.Action{
+	_, ack, err := act(suite, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -92,12 +93,12 @@ func (suite *testSuite) TestExecuteWasm() {
 	require.Equal(suite.T(), []byte(`{"new_number":1}`), res.Data)
 
 	// check if the number has been correctly incremented once
-	number, err := queryNumber(suite.chainB, suite.chainB.counterAddr)
+	number, err := queryNumber(suite.chainB)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), uint64(1), number)
 
 	// test 2 - increment the number more times in a single packet
-	_, err = act(suite, []types.Action{
+	_, _, err = act(suite, []types.Action{
 		{
 			Execute: &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
@@ -135,7 +136,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	require.NoError(suite.T(), err)
 
 	// check if the number has been correctly incremented two more times
-	number, err = queryNumber(suite.chainB, suite.chainB.counterAddr)
+	number, err = queryNumber(suite.chainB)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), uint64(4), number)
 }
@@ -143,7 +144,7 @@ func (suite *testSuite) TestExecuteWasm() {
 func (suite *testSuite) TestQuery() {
 	// we query the number (both raw and smart), increase the counter once, then
 	// query again
-	ack, err := act(suite, []types.Action{
+	_, ack, err := act(suite, []types.Action{
 		{
 			Query: &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
@@ -206,41 +207,108 @@ func (suite *testSuite) TestQuery() {
 	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Result[5].Query.Response)
 }
 
+func (suite *testSuite) TestCallback() {
+	// register an account, increment the counter, and query the number
+	packet1, ack1, err := act(suite, []types.Action{
+		{
+			RegisterAccount: &types.RegisterAccountAction{},
+		},
+		{
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
+				},
+			},
+		},
+		{
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
+				},
+			},
+		},
+	})
+	require.NoError(suite.T(), err)
+
+	// make sure the actions are successful
+	// this is a weird way to match enum variants, but it works
+	require.NotEmpty(suite.T(), ack1.Result)
+	require.Empty(suite.T(), ack1.Error)
+
+	// the mock-sender contract should have stored the ack during the callback.
+	// let's grab this callback
+	callbackAck1, _ := queryAck(suite.chainA, packet1.SourceChannel, packet1.Sequence)
+	require.NoError(suite.T(), err)
+	require.Equal(suite.T(), ack1, callbackAck1)
+
+	// do the same thing but with an intentionally failed packet
+	packet2, ack2, err := act(suite, []types.Action{
+		{
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment_but_fail":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(suite.T(), err)
+
+	// make sure the action indeed failed
+	require.Empty(suite.T(), ack2.Result)
+	require.NotEmpty(suite.T(), ack2.Error)
+
+	// mock-sender should have recorded the correct error ack
+	callbackAck2, _ := queryAck(suite.chainA, packet2.SourceChannel, packet2.Sequence)
+	require.NoError(suite.T(), err)
+	require.Equal(suite.T(), ack2, callbackAck2)
+}
+
 // act controller on chainA executes some actions on chainB
-func act(suite *testSuite, actions []types.Action) (*types.PacketAck, error) {
+func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
 	// compose the executeMsg
-	executeMsg, err := json.Marshal(types.CoreExecuteMsg{
-		Act: &types.Act{
+	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
+		Send: &types.Send{
 			ConnectionID: suite.pathAB.EndpointA.ConnectionID,
 			Actions:      actions,
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// executes one-core contract on chainA
+	// executes mock-sender contract on chainA
 	if _, err = suite.chainA.SendMsgs(&wasmtypes.MsgExecuteContract{
 		Sender:   suite.chainA.SenderAccount.GetAddress().String(),
-		Contract: suite.chainA.coreAddr.String(),
+		Contract: suite.chainA.senderAddr.String(),
 		Msg:      executeMsg,
 		Funds:    []sdk.Coin{},
 	}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// relay the packet
-	ackBytes, err := relaySinglePacket(suite.pathAB)
+	packet, ackBytes, err := relaySinglePacket(suite.pathAB)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ack := &types.PacketAck{}
 	if err = json.Unmarshal(ackBytes, ack); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return ack, nil
+	return packet, ack, nil
 }
 
 // queryAccount queries the account owned by the specified controller
@@ -267,12 +335,27 @@ func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAdd
 	return accountAddr, nil
 }
 
-// assertNumber check whether the number stored in mock-counter contract equals
-// the specified value
-func queryNumber(chain *testChain, counter sdk.AccAddress) (uint64, error) {
+// queryAck queries the mock-sender contract for the ack it stores
+func queryAck(chain *testChain, channelID string, sequence uint64) (*types.PacketAck, error) {
+	ackRes := types.AckResponse{}
+	err := chain.SmartQuery(
+		chain.senderAddr.String(),
+		&types.SenderQueryMsg{
+			Ack: &types.AckQuery{
+				ChannelID: channelID,
+				Sequence:  sequence,
+			},
+		},
+		&ackRes,
+	)
+	return &ackRes.Ack, err
+}
+
+// queryNumber queries the mock-counter contract for the number it stores
+func queryNumber(chain *testChain) (uint64, error) {
 	numberRes := types.NumberResponse{}
 	err := chain.SmartQuery(
-		counter.String(),
+		chain.counterAddr.String(),
 		&types.CounterQueryMsg{
 			Number: &types.NumberQuery{},
 		},

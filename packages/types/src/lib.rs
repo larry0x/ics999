@@ -116,18 +116,6 @@ pub enum ActionResult {
         recipient: String,
     },
 
-    /// Result of a successful wasm raw query
-    QueryRaw {
-        /// None if the key does not exist
-        value: Option<Binary>,
-    },
-
-    /// Result of a successful wasm smart query
-    QuerySmart {
-        /// The querying contract is responsible for decoding the response
-        response: Binary,
-    },
-
     /// Result of a successfully executed `register_account` action.
     RegisterAccount {
         /// The address of the account that was registered
@@ -138,6 +126,12 @@ pub enum ActionResult {
     Execute {
         /// The data returned by the ICA contract
         data: Option<Binary>,
+    },
+
+    /// Result of a successful query
+    Query {
+        /// The querying contract is responsible for decoding the response
+        response: Binary,
     },
 }
 

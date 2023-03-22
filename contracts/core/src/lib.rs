@@ -1,5 +1,5 @@
-#[cfg(feature = "entry")]
-pub mod entries;
+#[cfg(not(feature = "library"))]
+pub mod contract;
 pub mod error;
 pub mod execute;
 pub mod handler;

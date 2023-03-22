@@ -10,6 +10,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 
 	wasmibctesting "github.com/CosmWasm/wasmd/x/wasm/ibctesting"
@@ -41,31 +42,37 @@ type testChain struct {
 	*wasmibctesting.TestChain
 
 	coreAddr    sdk.AccAddress
+	senderAddr  sdk.AccAddress
 	counterAddr sdk.AccAddress
 
 	accountCodeID uint64
 }
 
 func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
-	// store one-core contract code
-	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core.wasm")
+	// store contract codes
+	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core-aarch64.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
-
-	// store one-account contract code
-	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account.wasm")
+	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account-aarch64.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
-
-	// store mock-counter contract code
-	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter.wasm")
-	require.Equal(t, uint64(3), counterStoreRes.CodeID)
+	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender-aarch64.wasm")
+	require.Equal(t, uint64(3), senderStoreRes.CodeID)
+	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter-aarch64.wasm")
+	require.Equal(t, uint64(4), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
-	instantiateMsg, err := json.Marshal(&types.CoreInstantiateMsg{
+	coreInstantiateMsg, err := json.Marshal(&types.CoreInstantiateMsg{
 		AccountCodeID:  accountStoreRes.CodeID,
 		TransferCodeID: uint64(0), // FIXME: placeholder
 	})
 	require.NoError(t, err)
-	core := chain.InstantiateContract(coreStoreRes.CodeID, instantiateMsg)
+	core := chain.InstantiateContract(coreStoreRes.CodeID, coreInstantiateMsg)
+
+	// instantiate mock-sender contract
+	senderInstantiateMsg, err := json.Marshal(&types.SenderInstantiateMsg{
+		OneCore: core.String(),
+	})
+	require.NoError(t, err)
+	sender := chain.InstantiateContract(senderStoreRes.CodeID, senderInstantiateMsg)
 
 	// instantiate mock-counter contract
 	counter := chain.InstantiateContract(counterStoreRes.CodeID, []byte("{}"))
@@ -73,6 +80,7 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	return &testChain{
 		TestChain:     chain,
 		coreAddr:      core,
+		senderAddr:    sender,
 		counterAddr:   counter,
 		accountCodeID: accountStoreRes.CodeID,
 	}
@@ -98,17 +106,17 @@ func setupConnection(coordinator *wasmibctesting.Coordinator, chainA, chainB *te
 }
 
 // relaySinglePacket relays a single packet from EndpointA to EndpointB.
+// To relayer a packet from B to A, do: relaySinglePacket(reversePath(path)).
 //
 // We choose to write our own relaying instead of using coordinator.RelayAndAckPendingPackets
-// because:
-// - we want to grab the ack and assert its content is correct
-// - we want to add some logging capability
-func relaySinglePacket(path *wasmibctesting.Path) (ack []byte, err error) {
+// because we want to grab the original packet and ack and assert their contents
+// are correct
+func relaySinglePacket(path *wasmibctesting.Path) (*channeltypes.Packet, []byte, error) {
 	// in this function, we relay from EndpointA --> EndpointB
 	src := path.EndpointA
 
 	if len(src.Chain.PendingSendPackets) < 1 {
-		return nil, errors.New("no packet to relay")
+		return nil, nil, errors.New("no packet to relay")
 	}
 
 	// grab the first pending packet
@@ -116,24 +124,34 @@ func relaySinglePacket(path *wasmibctesting.Path) (ack []byte, err error) {
 	src.Chain.PendingSendPackets = src.Chain.PendingSendPackets[1:]
 
 	if err := path.EndpointB.UpdateClient(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	res, err := path.EndpointB.RecvPacketWithResult(packet)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	ack, err = ibctesting.ParseAckFromEvents(res.GetEvents())
+	ack, err := ibctesting.ParseAckFromEvents(res.GetEvents())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err = path.EndpointA.AcknowledgePacket(packet, ack); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return ack, err
+	return &packet, ack, err
+}
+
+// reversePath change the order of EndpointA and EndpointB in a path
+//
+//lint:ignore U1000 will be used later
+func reversePath(path *wasmibctesting.Path) *wasmibctesting.Path {
+	return &wasmibctesting.Path{
+		EndpointA: path.EndpointB,
+		EndpointB: path.EndpointA,
+	}
 }
 
 func Test(t *testing.T) {

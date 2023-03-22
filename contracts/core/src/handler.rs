@@ -191,7 +191,7 @@ impl Handler {
                     return Err(ContractError::QueryFailed);
                 };
 
-                self.results.push(ActionResult::QuerySmart {
+                self.results.push(ActionResult::Query {
                     response,
                 });
 
@@ -269,5 +269,7 @@ fn default_salt(connection_id: &str, controller: &str) -> Binary {
     let mut bytes = vec![];
     bytes.extend(connection_id.as_bytes());
     bytes.extend(controller.as_bytes());
+    // salt has a max length of 64 bytes!!!
+    bytes.truncate(64);
     bytes.into()
 }

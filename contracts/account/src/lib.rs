@@ -26,7 +26,7 @@ pub enum ContractError {
     Ownership(#[from] OwnershipError),
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -41,7 +41,7 @@ pub fn instantiate(
         .add_attribute("owner", info.sender))
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     _env: Env,
@@ -55,7 +55,7 @@ pub fn execute(
         .add_attribute("action", "execute"))
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         // if the submsg returned data, we need to forward it back to one-core
@@ -75,7 +75,7 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, Contract
     }
 }
 
-#[cfg_attr(feature = "entry", entry_point)]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
