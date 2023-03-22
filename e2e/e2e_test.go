@@ -39,7 +39,7 @@ func (suite *testSuite) TestRegisterAccount() {
 		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack1.Result[0].RegisterAccount.Address, accountAddr.String())
+	require.Equal(suite.T(), ack1.Results[0].RegisterAccount.Address, accountAddr.String())
 
 	// query the account contract info
 	accountInfo := suite.chainB.ContractInfo(accountAddr)
@@ -96,7 +96,7 @@ func (suite *testSuite) TestExecuteWasm() {
 
 	// check the ack includes the correct result
 	res := wasmtypes.MsgExecuteContractResponse{}
-	err = proto.Unmarshal(ack1.Result[1].Execute.Data, &res)
+	err = proto.Unmarshal(ack1.Results[1].Execute.Data, &res)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), []byte(`{"new_number":1}`), res.Data)
 
@@ -190,10 +190,10 @@ func (suite *testSuite) TestQuery() {
 		},
 	})
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), []byte("0"), ack.Result[0].Query.Response)
-	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Result[1].Query.Response)
-	require.Equal(suite.T(), []byte("1"), ack.Result[4].Query.Response)
-	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Result[5].Query.Response)
+	require.Equal(suite.T(), []byte("0"), ack.Results[0].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Results[1].Query.Response)
+	require.Equal(suite.T(), []byte("1"), ack.Results[4].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Results[5].Query.Response)
 }
 
 func (suite *testSuite) TestCallback() {
@@ -308,12 +308,13 @@ func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAdd
 }
 
 func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
-	require.NotEmpty(t, ack.Result)
+	fmt.Println("ACK:", ack)
+	require.NotEmpty(t, ack.Results)
 	require.Empty(t, ack.Error)
 }
 
 func requirePacketFailed(t *testing.T, ack *types.PacketAck) {
-	require.Empty(t, ack.Result)
+	require.Empty(t, ack.Results)
 	require.NotEmpty(t, ack.Error)
 }
 

@@ -32,7 +32,7 @@ pub enum PacketAck {
     ///
     /// ICS-4 recommends a raw binary here, but we choose to use `Vec<ActionResult>`
     /// so that it's easier to consume by the sender contract
-    Result(Vec<ActionResult>),
+    Results(Vec<ActionResult>),
 
     /// One of the actions failed to execute. In this case, the entire queue of
     /// actions is considered to be failed. We inform the sender contract of the

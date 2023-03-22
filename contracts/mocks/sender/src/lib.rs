@@ -132,7 +132,7 @@ pub fn execute(
         } => {
             let outcome = match ack_opt {
                 Some(ack) => match ack {
-                    PacketAck::Result(_) => PacketOutcome::Successful,
+                    PacketAck::Results(_) => PacketOutcome::Successful,
                     PacketAck::Error(_) => PacketOutcome::Failed,
                 },
                 None => PacketOutcome::TimedOut,

@@ -188,7 +188,7 @@ pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
             let action_res_bin = execute_res.data.expect("missing action results data");
             let action_res = from_slice(&action_res_bin)?;
 
-            PacketAck::Result(action_res)
+            PacketAck::Results(action_res)
         },
 
         // one of actions failed - write an Error ack

@@ -33,8 +33,8 @@ type RegisterAccountAction struct {
 }
 
 type PacketAck struct {
-	Result []ActionResult `json:"result,omitempty"`
-	Error  string         `json:"error,omitempty"`
+	Results []ActionResult `json:"results,omitempty"`
+	Error   string         `json:"error,omitempty"`
 }
 
 type ActionResult struct {
