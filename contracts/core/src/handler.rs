@@ -205,7 +205,7 @@ impl Handler {
                 .into()
             },
 
-            Action::Execute(wasm_msg) => {
+            Action::Execute(cosmos_msg) => {
                 let Some(addr) = &self.host else {
                     return Err(ContractError::AccountNotFound {
                         connection_id: self.connection_id,
@@ -213,15 +213,10 @@ impl Handler {
                     });
                 };
 
-                let funds = {
-                    // TODO: convert funds to their corresponding ibc denoms
-                    vec![]
-                };
-
                 WasmMsg::Execute {
                     contract_addr: addr.into(),
-                    msg: to_binary(&wasm_msg)?,
-                    funds,
+                    msg: to_binary(&cosmos_msg)?,
+                    funds: vec![],
                 }
                 .into()
             },
