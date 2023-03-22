@@ -36,7 +36,7 @@ func (suite *testSuite) TestRegisterAccount() {
 		suite.chainA.SenderAccount.GetAddress().String(),
 	)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack.Result[0].RegisterAccount.Address, accountAddr)
+	require.Equal(suite.T(), ack.Result[0].RegisterAccount.Address, accountAddr.String())
 
 	// query the account contract info
 	accountInfo := suite.chainB.ContractInfo(accountAddr)
