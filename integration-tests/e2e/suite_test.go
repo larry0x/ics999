@@ -49,15 +49,15 @@ type testChain struct {
 
 func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	// store one-core contract code
-	coreStoreRes := chain.StoreCodeFile("../../artifacts/one_core-aarch64.wasm")
+	coreStoreRes := chain.StoreCodeFile("../../artifacts/one_core.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
 
 	// store one-account contract code
-	accountStoreRes := chain.StoreCodeFile("../../artifacts/one_account-aarch64.wasm")
+	accountStoreRes := chain.StoreCodeFile("../../artifacts/one_account.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
 
 	// store mock-counter contract code
-	counterStoreRes := chain.StoreCodeFile("../../artifacts/mock_counter-aarch64.wasm")
+	counterStoreRes := chain.StoreCodeFile("../../artifacts/mock_counter.wasm")
 	require.Equal(t, uint64(3), counterStoreRes.CodeID)
 
 	// instantiate one-core contract

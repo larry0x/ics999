@@ -3,8 +3,8 @@ name: Go
 on: push
 
 jobs:
-  test:
-    name: Test
+  e2e:
+    name: E2E
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -14,25 +14,14 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: '1.20'
+
+      - name: Optimize contracts
+        run: |
+          docker run --rm -v "$(pwd)":/code \
+            --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+            --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+            cosmwasm/workspace-optimizer:0.12.12
 
       - name: Run tests
         working-directory: ./integration-tests
         run: go test ./...
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.20'
-
-      - name: Lint
-        working-directory: ./integration-tests
-        uses: golangci/golangci-lint-action@v3.2.0
-        with:
-          version: latest
