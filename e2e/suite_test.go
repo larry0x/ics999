@@ -3,7 +3,6 @@ package e2e_test
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -49,15 +48,15 @@ type testChain struct {
 
 func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	// store one-core contract code
-	coreStoreRes := chain.StoreCodeFile("../../artifacts/one_core.wasm")
+	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
 
 	// store one-account contract code
-	accountStoreRes := chain.StoreCodeFile("../../artifacts/one_account.wasm")
+	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
 
 	// store mock-counter contract code
-	counterStoreRes := chain.StoreCodeFile("../../artifacts/mock_counter.wasm")
+	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter.wasm")
 	require.Equal(t, uint64(3), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
@@ -113,7 +112,6 @@ func relaySinglePacket(path *wasmibctesting.Path) (ack []byte, err error) {
 	}
 
 	// grab the first pending packet
-	//packet := channeltypes.Packet{}
 	packet := src.Chain.PendingSendPackets[0]
 	src.Chain.PendingSendPackets = src.Chain.PendingSendPackets[1:]
 
@@ -134,16 +132,6 @@ func relaySinglePacket(path *wasmibctesting.Path) (ack []byte, err error) {
 	if err = path.EndpointA.AcknowledgePacket(packet, ack); err != nil {
 		return nil, err
 	}
-
-	for _, event := range res.GetEvents() {
-		fmt.Println("event_type:", event.Type)
-		for _, attr := range event.Attributes {
-			fmt.Println(" - key:", string(attr.Key))
-			fmt.Println("   value:", string(attr.Value))
-		}
-	}
-
-	fmt.Println("ack:", string(ack))
 
 	return ack, err
 }
