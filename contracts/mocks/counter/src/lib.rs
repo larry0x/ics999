@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError,
-    StdResult, Coin,
+    entry_point, to_binary, Binary, Coin, Deps, DepsMut, Empty, Env, MessageInfo, Response,
+    StdError, StdResult,
 };
 use cw_storage_plus::Item;
 

@@ -1,6 +1,5 @@
 use cosmwasm_schema::write_api;
-use cosmwasm_std::{Empty, CosmosMsg};
-
+use cosmwasm_std::{CosmosMsg, Empty};
 use one_account::QueryMsg;
 
 fn main() {
