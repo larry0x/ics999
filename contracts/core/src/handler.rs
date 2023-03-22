@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
-    Env, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    Env, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, QueryRequest,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -169,7 +169,7 @@ impl Handler {
                 }
             },
 
-            Action::Execute(cosmos_msg) => {
+            Action::Execute(wasm_msg) => {
                 let Some(addr) = &self.host else {
                     return Err(ContractError::AccountNotFound {
                         connection_id: self.connection_id,
@@ -179,13 +179,14 @@ impl Handler {
 
                 WasmMsg::Execute {
                     contract_addr: addr.into(),
-                    msg: to_binary(&cosmos_msg)?,
+                    msg: to_binary(&wasm_msg)?,
                     funds: vec![],
                 }
             },
 
-            Action::Query(query_req) => {
-                let query_res = deps.querier.raw_query(&to_binary(query_req)?);
+            Action::Query(wasm_query) => {
+                let query_req = QueryRequest::<Empty>::Wasm(wasm_query.clone());
+                let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
                     return Err(ContractError::QueryFailed);

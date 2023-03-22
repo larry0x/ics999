@@ -17,10 +17,10 @@ type PacketData struct {
 }
 
 type Action struct {
-	Transfer        *TransferAction           `json:"transfer,omitempty"`
-	RegisterAccount *RegisterAccountAction    `json:"register_account,omitempty"`
-	Execute         *wasmvmtypes.CosmosMsg    `json:"execute,omitempty"`
-	Query           *wasmvmtypes.QueryRequest `json:"query,omitempty"`
+	Transfer        *TransferAction        `json:"transfer,omitempty"`
+	RegisterAccount *RegisterAccountAction `json:"register_account,omitempty"`
+	Execute         *wasmvmtypes.WasmMsg   `json:"execute,omitempty"`
+	Query           *wasmvmtypes.WasmQuery `json:"query,omitempty"`
 }
 
 type TransferAction struct {
