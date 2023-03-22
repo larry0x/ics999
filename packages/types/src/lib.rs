@@ -16,6 +16,9 @@ pub struct PacketData {
     /// Actions to take.
     /// The actions will be executed in order and atomically.
     pub actions: Vec<Action>,
+
+    /// Whether to give the sender a callback at the end of the packet lifecycle
+    pub callback: bool,
 }
 
 /// ICS-999 packet acknowledgement
@@ -154,7 +157,6 @@ pub enum SenderExecuteMsg {
     /// Called by ICS-999 core contract after the completion of a packet
     /// lifecycle (acknowledged or timed out)
     PacketCallback {
-        connection_id: String,
         channel_id: String,
         sequence: u64,
         /// The packet acknowledgement. None if the packet has timed out.

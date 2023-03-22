@@ -14,3 +14,4 @@ pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // reply IDs
 const AFTER_ACTION: u64 = 1;
 const AFTER_ALL_ACTIONS: u64 = 2;
+const AFTER_CALLBACK: u64 = 3;

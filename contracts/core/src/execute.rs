@@ -23,7 +23,7 @@ pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractErro
 
 pub fn act(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     connection_id: String,
     actions: Vec<Action>,
@@ -32,7 +32,6 @@ pub fn act(
 ) -> Result<Response, ContractError> {
     // TODO: validate received coin amount
     // TODO: make sure the action queue is not empty
-    // TODO: save callback
 
     Ok(Response::new()
         .add_message(IbcMsg::SendPacket {
@@ -40,6 +39,7 @@ pub fn act(
             data: to_binary(&PacketData {
                 sender: info.sender.into(),
                 actions,
+                callback,
             })?,
             timeout,
         })

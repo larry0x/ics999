@@ -9,7 +9,7 @@ use crate::{
     error::ContractError,
     execute, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    query, AFTER_ACTION, AFTER_ALL_ACTIONS, CONTRACT_NAME, CONTRACT_VERSION,
+    query, AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]
@@ -55,13 +55,9 @@ pub fn execute(
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        // after finished executing a single action - update the result, and
-        // move on to the next action
         AFTER_ACTION => execute::after_action(deps, env, msg.result),
-
-        // after finished executing all actions - write ack and clear up state
         AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),
-
+        AFTER_CALLBACK => ibc::after_callback(msg.result.is_ok()),
         id => unreachable!("unknown reply ID: `{id}`"),
     }
 }
@@ -136,18 +132,16 @@ pub fn ibc_packet_receive(
 pub fn ibc_packet_ack(
     _deps: DepsMut,
     _env: Env,
-    _ack: IbcPacketAckMsg,
+    msg: IbcPacketAckMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    // TODO
-    Ok(IbcBasicResponse::new())
+    ibc::packet_lifecycle_complete(msg.original_packet, Some(msg.acknowledgement.data))
 }
 
 #[entry_point]
 pub fn ibc_packet_timeout(
     _deps: DepsMut,
     _env: Env,
-    _msg: IbcPacketTimeoutMsg,
+    msg: IbcPacketTimeoutMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    // TODO
-    Ok(IbcBasicResponse::new())
+    ibc::packet_lifecycle_complete(msg.packet, None)
 }

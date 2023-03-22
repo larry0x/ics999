@@ -1,13 +1,16 @@
 use cosmwasm_std::{
-    from_slice, to_binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel,
+    from_slice, to_binary, Binary, ChannelResponse, DepsMut, Env, IbcBasicResponse, IbcChannel,
     IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse,
     PortIdResponse, QuerierWrapper, QueryRequest, Response, Storage, SubMsg, SubMsgResponse,
     SubMsgResult, WasmMsg,
 };
 use cw_utils::parse_execute_response_data;
-use one_types::{PacketAck, PacketData};
+use one_types::{PacketAck, PacketData, SenderExecuteMsg};
 
-use crate::{error::ContractError, msg::ExecuteMsg, state::ACTIVE_CHANNELS, AFTER_ALL_ACTIONS};
+use crate::{
+    error::ContractError, msg::ExecuteMsg, state::ACTIVE_CHANNELS, AFTER_ALL_ACTIONS,
+    AFTER_CALLBACK,
+};
 
 pub fn open_init(
     deps: DepsMut,
@@ -51,6 +54,68 @@ pub fn open_connect(
         .add_attribute("connection_id", &channel.connection_id)
         .add_attribute("port_id", &channel.endpoint.port_id)
         .add_attribute("channel_id", &channel.endpoint.channel_id))
+}
+
+fn validate_order_and_version(
+    order: &IbcOrder,
+    version: &str,
+    counterparty_version: Option<&str>,
+) -> Result<(), ContractError> {
+    if *order != one_types::ORDER {
+        return Err(ContractError::IncorrectOrder {
+            actual: order.clone(),
+            expected: one_types::ORDER,
+        });
+    }
+
+    if version != one_types::VERSION {
+        return Err(ContractError::IncorrectVersion {
+            actual: version.into(),
+            expected: one_types::VERSION.into(),
+        });
+    }
+
+    if let Some(cp_version) = counterparty_version {
+        if cp_version != one_types::VERSION {
+            return Err(ContractError::IncorrectVersion {
+                actual: cp_version.into(),
+                expected: one_types::VERSION.into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<(), ContractError> {
+    if ACTIVE_CHANNELS.has(store, connection_id) {
+        return Err(ContractError::ChannelExists {
+            connection_id: connection_id.into(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Query the connection ID associated with the specified channel
+fn connection_of_channel(
+    querier: &QuerierWrapper,
+    channel_id: &str,
+) -> Result<String, ContractError> {
+    let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
+        channel_id: channel_id.into(),
+        port_id: None, // default to the contract's own port
+    }))?;
+
+    let Some(chan) = chan_res.channel else {
+        let port_res: PortIdResponse = querier.query(&QueryRequest::Ibc(IbcQuery::PortId {}))?;
+        return Err(ContractError::ChannelNotFound {
+            port_id: port_res.port_id,
+            channel_id: channel_id.into(),
+        });
+    };
+
+    Ok(chan.connection_id)
 }
 
 pub fn close(msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse, ContractError> {
@@ -138,64 +203,53 @@ pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
         .set_data(to_binary(&ack)?))
 }
 
-fn validate_order_and_version(
-    order: &IbcOrder,
-    version: &str,
-    counterparty_version: Option<&str>,
-) -> Result<(), ContractError> {
-    if *order != one_types::ORDER {
-        return Err(ContractError::IncorrectOrder {
-            actual: order.clone(),
-            expected: one_types::ORDER,
-        });
+pub fn packet_lifecycle_complete(
+    packet: IbcPacket,
+    ack_bin: Option<Binary>,
+) -> Result<IbcBasicResponse, ContractError> {
+    let packet_data: PacketData = from_slice(&packet.data)?;
+
+    let res = build_lifecycle_complete_res(&packet, &packet_data, ack_bin.is_some());
+
+    if !packet_data.callback {
+        return Ok(res);
     }
 
-    if version != one_types::VERSION {
-        return Err(ContractError::IncorrectVersion {
-            actual: version.into(),
-            expected: one_types::VERSION.into(),
-        });
-    }
-
-    if let Some(cp_version) = counterparty_version {
-        if cp_version != one_types::VERSION {
-            return Err(ContractError::IncorrectVersion {
-                actual: cp_version.into(),
-                expected: one_types::VERSION.into(),
-            });
-        }
-    }
-
-    Ok(())
-}
-
-fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<(), ContractError> {
-    if ACTIVE_CHANNELS.has(store, connection_id) {
-        return Err(ContractError::ChannelExists {
-            connection_id: connection_id.into(),
-        });
-    }
-
-    Ok(())
-}
-
-/// Query the connection ID associated with the specified channel
-fn connection_of_channel(
-    querier: &QuerierWrapper,
-    channel_id: &str,
-) -> Result<String, ContractError> {
-    let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
-        channel_id: channel_id.into(),
-        port_id: None, // default to the contract's own port
-    }))?;
-
-    let Some(chan) = chan_res.channel else {
-        let port_res: PortIdResponse = querier.query(&QueryRequest::Ibc(IbcQuery::PortId {}))?;
-        return Err(ContractError::ChannelNotFound {
-            port_id: port_res.port_id,
-            channel_id: channel_id.into(),
-        });
+    let ack: Option<PacketAck> = match &ack_bin {
+        Some(bin) => Some(from_slice(bin)?),
+        None => None,
     };
 
-    Ok(chan.connection_id)
+    Ok(res.add_submessage(SubMsg::reply_always(
+        WasmMsg::Execute {
+            contract_addr: packet_data.sender,
+            msg: to_binary(&SenderExecuteMsg::PacketCallback {
+                channel_id: packet.src.channel_id,
+                sequence: packet.sequence,
+                ack,
+            })?,
+            funds: vec![],
+        },
+        AFTER_CALLBACK,
+    )))
+}
+
+fn build_lifecycle_complete_res(
+    packet: &IbcPacket,
+    packet_data: &PacketData,
+    acknowledged: bool,
+) -> IbcBasicResponse {
+    IbcBasicResponse::new()
+        .add_attribute("action", "packet_lifecycle_complete")
+        .add_attribute("channel_id", &packet.src.channel_id)
+        .add_attribute("sequence", packet.sequence.to_string())
+        .add_attribute("acknowledged", acknowledged.to_string())
+        .add_attribute("sender", &packet_data.sender)
+        .add_attribute("callback", packet_data.callback.to_string())
+}
+
+pub fn after_callback(success: bool) -> Result<Response, ContractError> {
+    Ok(Response::new()
+        .add_attribute("action", "after_callback")
+        .add_attribute("success", success.to_string()))
 }
