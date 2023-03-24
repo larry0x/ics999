@@ -3,7 +3,7 @@ mod transfer;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, Coin, IbcOrder, WasmMsg, WasmQuery};
 
-pub use transfer::DenomTrace;
+pub use transfer::{DenomTrace, DenomTraceItem};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -20,6 +20,11 @@ pub struct PacketData {
     /// Actions to take.
     /// The actions will be executed in order and atomically.
     pub actions: Vec<Action>,
+
+    /// Traces of each token that is being transferred.
+    /// Receiver chain uses this to determine whether it's the sender or sink.
+    /// Must include ALL tokens that are being transferred.
+    pub denom_traces: Vec<DenomTraceItem>,
 }
 
 /// ICS-999 packet acknowledgement

@@ -2,6 +2,15 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{HexBinary, IbcEndpoint};
 use ripemd::{Digest, Ripemd160};
 
+/// This is used in the packet, which includes both the trace and the denom on
+/// the sender chain.
+#[cw_serde]
+pub struct DenomTraceItem {
+    pub denom: String,
+    pub base_denom: String,
+    pub path: Vec<IbcEndpoint>,
+}
+
 /// DenomTrace includes the token's original denom and the path it had travelled
 /// to arrive at the current chain. It is used to derive the voucher denom in
 /// such a way that there's a unique voucher denom for each token and each path.

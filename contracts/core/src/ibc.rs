@@ -207,9 +207,13 @@ pub fn packet_lifecycle_complete(
     packet: IbcPacket,
     ack_bin: Option<Binary>,
 ) -> Result<IbcBasicResponse, ContractError> {
+    // deserialize the original packet
     let packet_data: PacketData = from_slice(&packet.data)?;
 
+    // deserialize the ack
     let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
+
+    // TODO: refund escrowed tokens if the packet failed or timed out
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "packet_lifecycle_complete")
