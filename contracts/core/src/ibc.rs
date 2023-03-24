@@ -209,10 +209,7 @@ pub fn packet_lifecycle_complete(
 ) -> Result<IbcBasicResponse, ContractError> {
     let packet_data: PacketData = from_slice(&packet.data)?;
 
-    let ack: Option<PacketAck> = match &ack_bin {
-        Some(bin) => Some(from_slice(bin)?),
-        None => None,
-    };
+    let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "packet_lifecycle_complete")
