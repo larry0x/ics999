@@ -1,13 +1,14 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    entry_point, to_binary, Binary, Env, IbcBasicResponse, IbcChannelCloseMsg,
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
-    StdResult,
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, StdResult,
 };
+
+use token_factory::{Deps, DepsMut, Response};
 
 use crate::{
     error::ContractError,
-    execute, ibc,
+    execute, handler, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query, AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
@@ -47,7 +48,7 @@ pub fn execute(
                 return Err(ContractError::Unauthorized);
             }
 
-            execute::handle(deps, env, connection_id, controller, actions)
+            handler::handle(deps, env, connection_id, controller, actions)
         },
     }
 }
@@ -55,7 +56,7 @@ pub fn execute(
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        AFTER_ACTION => execute::after_action(deps, env, msg.result),
+        AFTER_ACTION => handler::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),
         AFTER_CALLBACK => ibc::after_callback(msg.result.is_ok()),
         id => unreachable!("unknown reply ID: `{id}`"),
@@ -66,6 +67,16 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query::config(deps)?),
+        QueryMsg::DenomHash {
+            trace,
+        } => to_binary(&trace.hash()),
+        QueryMsg::DenomTrace {
+            denom,
+        } => to_binary(&query::denom_trace(deps, denom)?),
+        QueryMsg::DenomTraces {
+            start_after,
+            limit,
+        } => to_binary(&query::denom_traces(deps, start_after, limit)?),
         QueryMsg::Account {
             connection_id,
             controller,

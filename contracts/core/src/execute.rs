@@ -1,22 +1,20 @@
 use cosmwasm_std::{
-    to_binary, DepsMut, Env, IbcMsg, IbcTimeout, MessageInfo, Response, SubMsgResult,
+    coin, to_binary, Addr, BankMsg, Coin, Deps, Env, IbcMsg, IbcTimeout, MessageInfo, Uint128,
 };
 use one_types::{Action, PacketData};
+use token_factory::{construct_denom, DepsMut, QuerierWrapper, Response, TokenFactoryMsg};
 
 use crate::{
     error::ContractError,
-    handler::Handler,
     msg::InstantiateMsg,
-    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS},
+    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES, TRANSFER},
 };
 
 pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractError> {
     ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
     DEFAULT_TIMEOUT_SECS.save(deps.storage, &msg.default_timeout_secs)?;
 
-    // TODO: instantaite the transfer contract
-
-    Ok(Response::new().add_attribute("action", "init"))
+    Ok(Response::new())
 }
 
 pub fn act(
@@ -28,11 +26,17 @@ pub fn act(
     callback: bool,
     opt_timeout: Option<IbcTimeout>,
 ) -> Result<Response, ContractError> {
-    // TODO: validate received coin amount
-
     if actions.is_empty() {
         return Err(ContractError::EmptyActionQueue);
     }
+
+    // TODO: validate received coin amount
+
+    // for each coin in each transfer action:
+    // - if localhost is the source => put tokens in escrow
+    // - if localhost is the sink => burn voucher tokens
+
+    // encode denom traces
 
     let timeout = match opt_timeout {
         None => {
@@ -55,19 +59,90 @@ pub fn act(
         .add_attribute("action", "act"))
 }
 
-pub fn handle(
-    deps: DepsMut,
-    env: Env,
-    connection_id: String,
-    controller: String,
-    actions: Vec<Action>,
-) -> Result<Response, ContractError> {
-    let handler = Handler::create(deps.storage, connection_id, controller, actions)?;
-    handler.handle_next_action(deps, env)
+fn encode_denom_traces(deps: Deps, actions: &mut [Action]) -> Result<(), ContractError> {
+    let transfer = TRANSFER.load(deps.storage)?;
+
+    for action in actions {
+        let Action::Transfer { amount, .. } = action else {
+            return Ok(());
+        };
+
+        for coin in amount {
+            // let trace = DENOM_TRACES
+        }
+    }
+
+    Ok(())
 }
 
-pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response, ContractError> {
-    let mut handler = Handler::load(deps.storage)?;
-    handler.handle_result(res.unwrap().data)?; // reply on success so unwrap can't fail
-    handler.handle_next_action(deps, env)
+fn create_and_mint(
+    querier: &QuerierWrapper,
+    creator: &Addr,
+    subdenom: String,
+    amount: Uint128,
+    to: &Addr,
+    res: Response,
+) -> Result<Response, ContractError> {
+    // we can only create the denom if denom create fee is zero
+    let tf_params = token_factory::query_params(querier)?;
+    if !tf_params.params.denom_creation_fee.is_empty() {
+        return Err(ContractError::NonZeroTokenCreationFee);
+    }
+
+    mint(
+        coin(amount.u128(), construct_denom(creator.as_str(), &subdenom)),
+        to,
+        res.add_message(TokenFactoryMsg::CreateDenom {
+            subdenom,
+        }),
+    )
+}
+
+fn mint(coin: Coin, to: &Addr, res: Response) -> Result<Response, ContractError> {
+    Ok(res
+        .add_attribute("coin", coin.to_string())
+        .add_attribute("action", "mint")
+        .add_message(TokenFactoryMsg::MintTokens {
+            denom: coin.denom,
+            amount: coin.amount,
+            mint_to_address: to.into(),
+        }))
+}
+
+fn burn(coin: Coin, from: &Addr, res: Response) -> Result<Response, ContractError> {
+    Ok(res
+        .add_attribute("coin", coin.to_string())
+        .add_attribute("action", "burn")
+        .add_message(TokenFactoryMsg::BurnTokens {
+            denom: coin.denom,
+            amount: coin.amount,
+            burn_from_address: from.into(),
+        }))
+}
+
+fn escrow(coin: Coin, res: Response) -> Result<Response, ContractError> {
+    Ok(res
+        .add_attribute("coin", coin.to_string())
+        .add_attribute("action", "escrow"))
+}
+
+fn release(coin: Coin, to: &Addr, res: Response) -> Result<Response, ContractError> {
+    Ok(res
+        .add_attribute("coin", coin.to_string())
+        .add_attribute("action", "release")
+        .add_message(BankMsg::Send {
+            to_address: to.into(),
+            amount: vec![coin],
+        }))
+}
+
+/// Check whether a tokenfactory denom exists.
+///
+/// We do this by attempting to query the denom's metadata. If it errors, we
+/// assume the token doesn't exist.
+///
+/// This approach ignores other possible errors such as serde errors, but I
+/// can't think of a better method.
+fn tf_denom_exists(querier: &QuerierWrapper, denom: &str) -> bool {
+    token_factory::query_metadata(querier, denom).is_ok()
 }

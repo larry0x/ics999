@@ -39,5 +39,5 @@ pub struct DenomUnit {
 
 #[cw_serde]
 pub struct Params {
-    denom_creation_fee: Vec<Coin>,
+    pub denom_creation_fee: Vec<Coin>,
 }

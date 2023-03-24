@@ -1,17 +1,36 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
-    Env, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, QueryRequest,
+    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, Empty, Env,
+    StdResult, Storage, SubMsg, SubMsgResult, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use one_types::{Action, ActionResult};
+use sha2::{Digest, Sha256};
+use token_factory::{DepsMut, QueryRequest, Response};
 
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
     AFTER_ACTION,
 };
+
+pub fn handle(
+    deps: DepsMut,
+    env: Env,
+    connection_id: String,
+    controller: String,
+    actions: Vec<Action>,
+) -> Result<Response, ContractError> {
+    let handler = Handler::create(deps.storage, connection_id, controller, actions)?;
+    handler.handle_next_action(deps, env)
+}
+
+pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response, ContractError> {
+    let mut handler = Handler::load(deps.storage)?;
+    handler.handle_result(res.unwrap().data)?; // reply on success so unwrap can't fail
+    handler.handle_next_action(deps, env)
+}
 
 const HANDLER: Item<Handler> = Item::new("handler");
 
@@ -22,7 +41,7 @@ const HANDLER: Item<Handler> = Item::new("handler");
 /// executing the actions. It also implements serde traits so that it can be
 /// saved/loaded from the contract store.
 #[cw_serde]
-pub struct Handler {
+struct Handler {
     /// The connection the packet was sent from
     pub connection_id: String,
 
@@ -136,8 +155,8 @@ impl Handler {
                     })?;
                 }
 
-                // if a salt is not provided, by default use the connection ID
-                // and controller account's UTF-8 bytes
+                // if a salt is not provided, by default use:
+                // sha256(connection_id_bytes | controller_addr_bytes)
                 let salt = salt
                     .clone()
                     .unwrap_or_else(|| default_salt(&self.connection_id, &self.controller));
@@ -179,13 +198,13 @@ impl Handler {
 
                 WasmMsg::Execute {
                     contract_addr: addr.into(),
-                    msg: to_binary(&wasm_msg)?,
+                    msg: to_binary(wasm_msg)?,
                     funds: vec![],
                 }
             },
 
             Action::Query(wasm_query) => {
-                let query_req = QueryRequest::<Empty>::Wasm(wasm_query.clone());
+                let query_req = QueryRequest::Wasm(wasm_query.clone());
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
@@ -264,13 +283,13 @@ impl Handler {
 
 /// Generate a salt to be used in Instantiate2, if the user does not provide one.
 ///
-/// The salt is the UTF-8 bytes of the connection ID and controller address,
-/// concatenated. This ensures unique salt for each {connection, controller} pair.
+/// The salt is sha256 hash of the connection ID and controller address.
+/// This entures:
+/// - unique for each {connection_id, controller} pair
+/// - not exceed the 64 byte max length
 fn default_salt(connection_id: &str, controller: &str) -> Binary {
-    let mut bytes = vec![];
-    bytes.extend(connection_id.as_bytes());
-    bytes.extend(controller.as_bytes());
-    // salt has a max length of 64 bytes!!!
-    bytes.truncate(64);
-    bytes.into()
+    let mut hasher = Sha256::new();
+    hasher.update(connection_id.as_bytes());
+    hasher.update(controller.as_bytes());
+    hasher.finalize().to_vec().into()
 }

@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::IbcTimeout;
-use one_types::Action;
+use cosmwasm_std::{Binary, HexBinary, IbcTimeout};
+use one_types::{Action, DenomTrace};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -9,6 +9,9 @@ pub struct InstantiateMsg {
 
     /// Code ID of the one-transfer contract
     pub transfer_code_id: u64,
+
+    /// A salt used for instantiating the transfer contract
+    pub transfer_salt: Binary,
 
     /// The default timeout (in seconds) if the user does not provide a timeout
     /// timestamp
@@ -57,6 +60,25 @@ pub enum QueryMsg {
     #[returns(ConfigResponse)]
     Config {},
 
+    /// Compute the denom hash of a given denom trace
+    #[returns(HexBinary)]
+    DenomHash {
+        trace: DenomTrace,
+    },
+
+    /// Query the denom trace associated with a given denom hash
+    #[returns(DenomTraceResponse)]
+    DenomTrace {
+        denom: String,
+    },
+
+    /// Iterate all known denom traces
+    #[returns(Vec<DenomTraceResponse>)]
+    DenomTraces {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     /// Interchain account controlled by a specific controller
     #[returns(AccountResponse)]
     Account {
@@ -90,6 +112,12 @@ pub struct ConfigResponse {
     pub account_code_id: u64,
     pub transfer: String,
     pub default_timeout_secs: u64,
+}
+
+#[cw_serde]
+pub struct DenomTraceResponse {
+    pub denom: String,
+    pub trace: DenomTrace,
 }
 
 #[cw_serde]

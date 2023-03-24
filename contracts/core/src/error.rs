@@ -15,6 +15,21 @@ pub enum ContractError {
     #[error(transparent)]
     ParseReply(#[from] ParseReplyError),
 
+    #[error("action queue cannot be empty")]
+    EmptyActionQueue,
+
+    #[error("cannot create voucher token because token create fee is non-zero")]
+    NonZeroTokenCreationFee,
+
+    #[error("query failed")]
+    QueryFailed,
+
+    #[error("unauthorized")]
+    Unauthorized,
+
+    #[error("ICS-999 channel may not be closed")]
+    UnexpectedChannelClosure,
+
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {
         actual: IbcOrder,
@@ -49,16 +64,4 @@ pub enum ContractError {
         connection_id: String,
         controller: String,
     },
-
-    #[error("action queue cannot be empty")]
-    EmptyActionQueue,
-
-    #[error("query failed")]
-    QueryFailed,
-
-    #[error("unauthorized")]
-    Unauthorized,
-
-    #[error("ICS-999 channel may not be closed")]
-    UnexpectedChannelClosure,
 }
