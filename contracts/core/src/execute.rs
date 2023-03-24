@@ -23,7 +23,6 @@ pub fn act(
     info: MessageInfo,
     connection_id: String,
     actions: Vec<Action>,
-    callback: bool,
     opt_timeout: Option<IbcTimeout>,
 ) -> Result<Response, ContractError> {
     if actions.is_empty() {
@@ -52,7 +51,6 @@ pub fn act(
             data: to_binary(&PacketData {
                 sender: info.sender.into(),
                 actions,
-                callback,
             })?,
             timeout,
         })

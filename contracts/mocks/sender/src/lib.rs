@@ -118,7 +118,6 @@ pub fn execute(
                     msg: to_binary(&one_core::msg::ExecuteMsg::Act {
                         connection_id,
                         actions,
-                        callback: true, // yes we always want the callback
                         timeout: None,  // use the default timeout set by one-core
                     })?,
                     funds: vec![],

@@ -20,9 +20,6 @@ pub struct PacketData {
     /// Actions to take.
     /// The actions will be executed in order and atomically.
     pub actions: Vec<Action>,
-
-    /// Whether to give the sender a callback at the end of the packet lifecycle
-    pub callback: bool,
 }
 
 /// ICS-999 packet acknowledgement

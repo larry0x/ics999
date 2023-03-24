@@ -29,9 +29,6 @@ pub enum ExecuteMsg {
         /// One or more actions to take
         actions: Vec<Action>,
 
-        /// Whether to request a callback on the completion of packet lifecycle
-        callback: bool,
-
         /// How many seconds from how will the packet timeout
         /// TODO: make this optional
         timeout: Option<IbcTimeout>,

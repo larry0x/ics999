@@ -208,42 +208,30 @@ pub fn packet_lifecycle_complete(
     ack_bin: Option<Binary>,
 ) -> Result<IbcBasicResponse, ContractError> {
     let packet_data: PacketData = from_slice(&packet.data)?;
-    let res = build_lifecycle_complete_res(&packet, &packet_data, ack_bin.is_some());
-    if !packet_data.callback {
-        return Ok(res);
-    }
 
     let ack: Option<PacketAck> = match &ack_bin {
         Some(bin) => Some(from_slice(bin)?),
         None => None,
     };
 
-    Ok(res.add_submessage(SubMsg::reply_always(
-        WasmMsg::Execute {
-            contract_addr: packet_data.sender,
-            msg: to_binary(&SenderExecuteMsg::PacketCallback {
-                channel_id: packet.src.channel_id,
-                sequence: packet.sequence,
-                ack,
-            })?,
-            funds: vec![],
-        },
-        AFTER_CALLBACK,
-    )))
-}
-
-fn build_lifecycle_complete_res(
-    packet: &IbcPacket,
-    packet_data: &PacketData,
-    acknowledged: bool,
-) -> IbcBasicResponse {
-    IbcBasicResponse::new()
+    Ok(IbcBasicResponse::new()
         .add_attribute("action", "packet_lifecycle_complete")
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
-        .add_attribute("acknowledged", acknowledged.to_string())
+        .add_attribute("acknowledged", ack.is_some().to_string())
         .add_attribute("sender", &packet_data.sender)
-        .add_attribute("callback", packet_data.callback.to_string())
+        .add_submessage(SubMsg::reply_always(
+            WasmMsg::Execute {
+                contract_addr: packet_data.sender,
+                msg: to_binary(&SenderExecuteMsg::PacketCallback {
+                    channel_id: packet.src.channel_id,
+                    sequence: packet.sequence,
+                    ack,
+                })?,
+                funds: vec![],
+            },
+            AFTER_CALLBACK,
+        )))
 }
 
 pub fn after_callback(success: bool) -> Result<Response, ContractError> {

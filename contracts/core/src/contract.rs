@@ -35,9 +35,8 @@ pub fn execute(
         ExecuteMsg::Act {
             connection_id,
             actions,
-            callback,
             timeout,
-        } => execute::act(deps, env, info, connection_id, actions, callback, timeout),
+        } => execute::act(deps, env, info, connection_id, actions, timeout),
         ExecuteMsg::Handle {
             connection_id,
             controller,
