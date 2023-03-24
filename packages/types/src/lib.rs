@@ -72,8 +72,8 @@ pub enum PacketAck {
 pub enum Action {
     /// Send one or more tokens to a recipient
     Transfer {
-        /// The amount of coins to transfer.
-        amount: Vec<Coin>,
+        /// The amount of coin to transfer.
+        amount: Coin,
 
         /// If not provided, default to the interchain account controlled by the
         /// sender.

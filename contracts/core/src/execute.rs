@@ -57,22 +57,6 @@ pub fn act(
         .add_attribute("action", "act"))
 }
 
-fn encode_denom_traces(deps: Deps, actions: &mut [Action]) -> Result<(), ContractError> {
-    let transfer = TRANSFER.load(deps.storage)?;
-
-    for action in actions {
-        let Action::Transfer { amount, .. } = action else {
-            return Ok(());
-        };
-
-        for coin in amount {
-            // let trace = DENOM_TRACES
-        }
-    }
-
-    Ok(())
-}
-
 fn create_and_mint(
     querier: &QuerierWrapper,
     creator: &Addr,
