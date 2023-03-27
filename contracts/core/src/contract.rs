@@ -1,12 +1,14 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, StdResult,Deps, DepsMut, Response
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
+    StdResult,
 };
 
 use crate::{
+    action,
     error::ContractError,
-    execute, action, ibc,
+    execute, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query, AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };

@@ -1,14 +1,15 @@
 use cosmwasm_std::{
-    coin, to_binary, Addr, BankMsg, Coin, Deps, Env, IbcMsg, IbcTimeout, MessageInfo, Uint128, Attribute,DepsMut, QuerierWrapper, Response,
-    CosmosMsg
+    coin, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Env, IbcMsg,
+    IbcTimeout, MessageInfo, QuerierWrapper, Response, Uint128,
 };
 use one_types::{Action, PacketData};
-use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery, };
+use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
+    coins::Coins,
     error::ContractError,
     msg::InstantiateMsg,
-    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES, TRANSFER}, coins::Coins,
+    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES, TRANSFER},
 };
 
 pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractError> {
@@ -86,7 +87,11 @@ fn create_and_mint(
     )
 }
 
-fn mint(coin: Coin, to: &Addr, res: Response<TokenFactoryMsg>) -> Result<Response<TokenFactoryMsg>, ContractError> {
+fn mint(
+    coin: Coin,
+    to: &Addr,
+    res: Response<TokenFactoryMsg>,
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     Ok(res
         .add_attribute("coin", coin.to_string())
         .add_attribute("action", "mint")
@@ -97,7 +102,11 @@ fn mint(coin: Coin, to: &Addr, res: Response<TokenFactoryMsg>) -> Result<Respons
         }))
 }
 
-fn burn(coin: Coin, from: &Addr, res: Response<TokenFactoryMsg>) -> Result<Response<TokenFactoryMsg>, ContractError> {
+fn burn(
+    coin: Coin,
+    from: &Addr,
+    res: Response<TokenFactoryMsg>,
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     Ok(res
         .add_attribute("coin", coin.to_string())
         .add_attribute("action", "burn")

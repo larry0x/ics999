@@ -23,7 +23,8 @@ impl From<Vec<Coin>> for Coins {
 // by the denoms
 impl From<Coins> for Vec<Coin> {
     fn from(coins: Coins) -> Self {
-        coins.0
+        coins
+            .0
             .into_iter()
             .map(|(denom, amount)| Coin {
                 denom,
