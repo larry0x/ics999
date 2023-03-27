@@ -1,7 +1,7 @@
 use cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError};
 use cw_utils::{ParseReplyError, PaymentError};
 
-use crate::coins::Coins;
+use crate::utils::Coins;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContractError {

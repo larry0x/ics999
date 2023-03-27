@@ -1,5 +1,4 @@
 pub mod action;
-pub mod coins;
 // #[cfg(not(feature = "library"))]
 pub mod contract;
 pub mod error;
@@ -8,6 +7,7 @@ pub mod ibc;
 pub mod msg;
 pub mod query;
 pub mod state;
+pub mod utils;
 
 pub const CONTRACT_NAME: &str = "crates.io:one-core";
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

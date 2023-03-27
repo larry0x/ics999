@@ -6,7 +6,7 @@ use one_types::{Action, PacketData, DenomTraceItem};
 use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
-    coins::Coins,
+    utils::Coins,
     error::ContractError,
     msg::InstantiateMsg,
     state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
