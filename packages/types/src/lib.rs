@@ -24,7 +24,7 @@ pub struct PacketData {
     /// Traces of each token that is being transferred.
     /// Receiver chain uses this to determine whether it's the sender or sink.
     /// Must include ALL tokens that are being transferred.
-    pub denom_traces: Vec<DenomTraceItem>,
+    pub traces: Vec<DenomTraceItem>,
 }
 
 /// ICS-999 packet acknowledgement

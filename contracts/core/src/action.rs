@@ -7,7 +7,7 @@ use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use one_types::{Action, ActionResult};
 use sha2::{Digest, Sha256};
-use token_factory::TokenFactoryQuery;
+use token_factory::{TokenFactoryQuery, TokenFactoryMsg};
 
 use crate::{
     error::ContractError,
@@ -21,12 +21,16 @@ pub fn handle(
     connection_id: String,
     controller: String,
     actions: Vec<Action>,
-) -> Result<Response, ContractError> {
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let handler = Handler::create(deps.storage, connection_id, controller, actions)?;
     handler.handle_next_action(deps, env)
 }
 
-pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response, ContractError> {
+pub fn after_action(
+    deps: DepsMut,
+    env: Env,
+    res: SubMsgResult,
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let mut handler = Handler::load(deps.storage)?;
     handler.handle_result(res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env)
@@ -120,7 +124,7 @@ impl Handler {
         mut self,
         deps: DepsMut,
         env: Env,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response<TokenFactoryMsg>, ContractError> {
         // fetch the first action in the queue
         self.action = self.pending_actions.pop();
 

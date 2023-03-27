@@ -4,6 +4,7 @@ use cosmwasm_std::{
     IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
     StdResult,
 };
+use token_factory::TokenFactoryMsg;
 
 use crate::{
     action,
@@ -30,7 +31,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     match msg {
         ExecuteMsg::Act {
             connection_id,
@@ -58,7 +59,11 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     match msg.id {
         AFTER_ACTION => action::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),

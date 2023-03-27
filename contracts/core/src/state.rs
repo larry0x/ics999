@@ -3,8 +3,6 @@ use cw_storage_plus::{Item, Map};
 
 use one_types::DenomTrace;
 
-pub const TRANSFER: Item<Addr> = Item::new("transfer");
-
 pub const ACCOUNT_CODE_ID: Item<u64> = Item::new("acc_cid");
 
 pub const DEFAULT_TIMEOUT_SECS: Item<u64> = Item::new("def_to_secs");

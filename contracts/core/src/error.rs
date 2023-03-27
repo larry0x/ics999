@@ -1,6 +1,8 @@
 use cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError};
 use cw_utils::{ParseReplyError, PaymentError};
 
+use crate::coins::Coins;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ContractError {
     #[error(transparent)]
@@ -32,6 +34,12 @@ pub enum ContractError {
 
     #[error("ICS-999 channel may not be closed")]
     UnexpectedChannelClosure,
+
+    #[error("incorrect amount of funds sent: expectiing `{expected}`, found `{actual}`")]
+    FundsMismatch {
+        actual: Coins,
+        expected: Coins,
+    },
 
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {

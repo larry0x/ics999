@@ -6,6 +6,7 @@ use cosmwasm_std::{
 };
 use cw_utils::parse_execute_response_data;
 use one_types::{PacketAck, PacketData, SenderExecuteMsg};
+use token_factory::TokenFactoryMsg;
 
 use crate::{
     error::ContractError, msg::ExecuteMsg, state::ACTIVE_CHANNELS, AFTER_ALL_ACTIONS,
@@ -175,7 +176,7 @@ pub fn packet_receive(
         )))
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
+pub fn after_all_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {
@@ -235,7 +236,7 @@ pub fn packet_lifecycle_complete(
         )))
 }
 
-pub fn after_callback(success: bool) -> Result<Response, ContractError> {
+pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, ContractError> {
     Ok(Response::new()
         .add_attribute("action", "after_callback")
         .add_attribute("success", success.to_string()))

@@ -4,15 +4,12 @@ use cw_storage_plus::Bound;
 
 use crate::{
     msg::{AccountResponse, ActiveChannelResponse, ConfigResponse, DenomTraceResponse},
-    state::{
-        ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES, TRANSFER,
-    },
+    state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
 };
 
 pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         account_code_id: ACCOUNT_CODE_ID.load(deps.storage)?,
-        transfer: TRANSFER.load(deps.storage)?.into(),
         default_timeout_secs: DEFAULT_TIMEOUT_SECS.load(deps.storage)?,
     })
 }

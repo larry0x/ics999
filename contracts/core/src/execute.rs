@@ -1,15 +1,15 @@
 use cosmwasm_std::{
-    coin, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Env, IbcMsg,
+    attr, coin, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, DepsMut, Env, IbcMsg,
     IbcTimeout, MessageInfo, QuerierWrapper, Response, Uint128,
 };
-use one_types::{Action, PacketData};
+use one_types::{Action, PacketData, DenomTraceItem};
 use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     coins::Coins,
     error::ContractError,
     msg::InstantiateMsg,
-    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES, TRANSFER},
+    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
 };
 
 pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractError> {
@@ -26,20 +26,46 @@ pub fn act(
     connection_id: String,
     actions: Vec<Action>,
     opt_timeout: Option<IbcTimeout>,
-) -> Result<Response, ContractError> {
+) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let received_funds = Coins::from(info.funds);
     let mut sending_funds = Coins::empty();
-    let mut msgs: Vec<CosmosMsg> = vec![];
-    let mut attrs: Vec<Attribute> = vec![];
-    let mut denom_traces = vec![];
+    let mut msgs = vec![];
+    let mut attrs = vec![];
+    let mut traces = vec![];
 
-    // TODO: validate received coin amount
+    for action in &actions {
+        if let Action::Transfer { amount, .. } = action {
+            // if the denom has a trace stored, then the current chain is the
+            // source.
+            // the last element of the trace must be the current chain, but no
+            // need to verify it here.
+            match DENOM_TRACES.may_load(deps.storage, &amount.denom)? {
+                // current chain is the sink -- burn voucher token
+                Some(trace) => {
+                    traces.push(DenomTraceItem {
+                        denom: amount.denom.clone(),
+                        base_denom: trace.base_denom,
+                        path: trace.path,
+                    });
+                    burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
+                },
 
-    // for each coin in each transfer action:
-    // - if localhost is the source => put tokens in escrow
-    // - if localhost is the sink => burn voucher tokens
+                // current chain is the source -- escrow
+                None => {
+                    escrow(amount, &mut attrs);
+                },
+            }
 
-    // encode denom traces
+            sending_funds.add(amount.clone())?;
+        }
+    }
+
+    if received_funds != sending_funds {
+        return Err(ContractError::FundsMismatch {
+            actual: received_funds,
+            expected: sending_funds,
+        });
+    }
 
     let timeout = match opt_timeout {
         None => {
@@ -56,7 +82,7 @@ pub fn act(
             data: to_binary(&PacketData {
                 sender: info.sender.into(),
                 actions,
-                denom_traces,
+                traces,
             })?,
             timeout,
         })
@@ -105,23 +131,44 @@ fn mint(
 fn burn(
     coin: Coin,
     from: &Addr,
-    res: Response<TokenFactoryMsg>,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
-    Ok(res
-        .add_attribute("coin", coin.to_string())
-        .add_attribute("action", "burn")
-        .add_message(TokenFactoryMsg::BurnTokens {
-            denom: coin.denom,
-            amount: coin.amount,
-            burn_from_address: from.into(),
-        }))
+    msgs: &mut Vec<CosmosMsg<TokenFactoryMsg>>,
+    attrs: &mut Vec<Attribute>,
+) {
+    attrs.push(attr("coin", coin.to_string()));
+    attrs.push(attr("action", "burn"));
+    msgs.push(TokenFactoryMsg::BurnTokens {
+        denom: coin.denom,
+        amount: coin.amount,
+        burn_from_address: from.into(),
+    }
+    .into());
 }
 
-fn escrow(coin: Coin, res: Response) -> Result<Response, ContractError> {
-    Ok(res
-        .add_attribute("coin", coin.to_string())
-        .add_attribute("action", "escrow"))
+fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
+    attrs.push(attr("coin", coin.to_string()));
+    attrs.push(attr("action", "escrow"));
 }
+
+// fn burn(
+//     coin: Coin,
+//     from: &Addr,
+//     res: Response<TokenFactoryMsg>,
+// ) -> Result<Response<TokenFactoryMsg>, ContractError> {
+//     Ok(res
+//         .add_attribute("coin", coin.to_string())
+//         .add_attribute("action", "burn")
+//         .add_message(TokenFactoryMsg::BurnTokens {
+//             denom: coin.denom,
+//             amount: coin.amount,
+//             burn_from_address: from.into(),
+//         }))
+// }
+
+// fn escrow(coin: Coin, res: Response) -> Result<Response, ContractError> {
+//     Ok(res
+//         .add_attribute("coin", coin.to_string())
+//         .add_attribute("action", "escrow"))
+// }
 
 fn release(coin: Coin, to: &Addr, res: Response) -> Result<Response, ContractError> {
     Ok(res

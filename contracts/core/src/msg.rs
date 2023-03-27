@@ -107,7 +107,6 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct ConfigResponse {
     pub account_code_id: u64,
-    pub transfer: String,
     pub default_timeout_secs: u64,
 }
 

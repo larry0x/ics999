@@ -1,11 +1,11 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 
 use cosmwasm_std::{Coin, Uint128};
 
 use crate::error::ContractError;
 
 // denom => amount
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Coins(BTreeMap<String, Uint128>);
 
 // UNSAFE: because we don't check for duplicate denoms or zero amounts
@@ -31,6 +31,18 @@ impl From<Coins> for Vec<Coin> {
                 amount,
             })
             .collect()
+    }
+}
+
+impl fmt::Display for Coins {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self
+            .0
+            .iter()
+            .map(|(denom, amount)| format!("{amount}{denom}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        write!(f, "{s}")
     }
 }
 
