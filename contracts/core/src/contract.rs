@@ -1,14 +1,12 @@
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Env, IbcBasicResponse, IbcChannelCloseMsg,
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, StdResult,
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, StdResult,Deps, DepsMut, Response
 };
-
-use token_factory::{Deps, DepsMut, Response};
 
 use crate::{
     error::ContractError,
-    execute, handler, ibc,
+    execute, action, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query, AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
@@ -36,18 +34,23 @@ pub fn execute(
             connection_id,
             actions,
             timeout,
-        } => execute::act(deps, env, info, connection_id, actions, timeout),
+        } => {
+            if actions.is_empty() {
+                return Err(ContractError::EmptyActionQueue);
+            }
+
+            execute::act(deps, env, info, connection_id, actions, timeout)
+        },
         ExecuteMsg::Handle {
             connection_id,
             controller,
             actions,
         } => {
-            // only the contract itself can invoke this method
             if info.sender != env.contract.address {
                 return Err(ContractError::Unauthorized);
             }
 
-            handler::handle(deps, env, connection_id, controller, actions)
+            action::handle(deps, env, connection_id, controller, actions)
         },
     }
 }
@@ -55,7 +58,7 @@ pub fn execute(
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        AFTER_ACTION => handler::after_action(deps, env, msg.result),
+        AFTER_ACTION => action::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),
         AFTER_CALLBACK => ibc::after_callback(msg.result.is_ok()),
         id => unreachable!("unknown reply ID: `{id}`"),

@@ -1,10 +1,13 @@
-use cosmwasm_std::{IbcOrder, Instantiate2AddressError, StdError};
+use cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError};
 use cw_utils::{ParseReplyError, PaymentError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
+
+    #[error(transparent)]
+    Overflow(#[from] OverflowError),
 
     #[error(transparent)]
     Instantiate2Address(#[from] Instantiate2AddressError),

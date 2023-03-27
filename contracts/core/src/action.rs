@@ -1,13 +1,13 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, Empty, Env,
-    StdResult, Storage, SubMsg, SubMsgResult, SystemResult, WasmMsg,
+    StdResult, Storage, SubMsg, SubMsgResult, SystemResult, WasmMsg, DepsMut, QueryRequest, Response
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use one_types::{Action, ActionResult};
 use sha2::{Digest, Sha256};
-use token_factory::{DepsMut, QueryRequest, Response};
+use token_factory::TokenFactoryQuery;
 
 use crate::{
     error::ContractError,
@@ -204,7 +204,7 @@ impl Handler {
             },
 
             Action::Query(wasm_query) => {
-                let query_req = QueryRequest::Wasm(wasm_query.clone());
+                let query_req = QueryRequest::Wasm::<TokenFactoryQuery>(wasm_query.clone());
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
