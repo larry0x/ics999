@@ -1,7 +1,6 @@
 use cosmwasm_std::{Deps, StdResult};
 use cw_paginate::paginate_map;
 use cw_storage_plus::Bound;
-
 use one_types::Trace;
 
 use crate::{

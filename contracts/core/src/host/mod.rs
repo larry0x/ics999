@@ -8,9 +8,7 @@ use cw_utils::parse_execute_response_data;
 use one_types::{Action, PacketAck, PacketData};
 use token_factory::TokenFactoryMsg;
 
-use crate::{
-    error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
-};
+use crate::{error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS};
 
 use self::handler::Handler;
 

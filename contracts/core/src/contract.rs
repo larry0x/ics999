@@ -7,12 +7,13 @@ use cosmwasm_std::{
 use token_factory::TokenFactoryMsg;
 
 use crate::{
+    controller,
     error::ContractError,
+    handshake, host,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query,
-    handshake,
     state::{ACCOUNT_CODE_ID, DEFAULT_TIMEOUT_SECS},
-    AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION, controller, host,
+    AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]

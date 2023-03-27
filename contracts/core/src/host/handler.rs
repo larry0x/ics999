@@ -6,12 +6,12 @@ use cosmwasm_std::{
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use one_types::{Action, ActionResult};
-use sha2::{Digest, Sha256};
-use token_factory::{TokenFactoryQuery, TokenFactoryMsg};
+use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
+    utils::default_salt,
     AFTER_ACTION,
 };
 
@@ -262,17 +262,4 @@ impl Handler {
             attr("actions_left", self.pending_actions.len().to_string()),
         ]
     }
-}
-
-/// Generate a salt to be used in Instantiate2, if the user does not provide one.
-///
-/// The salt is sha256 hash of the connection ID and controller address.
-/// This entures:
-/// - unique for each {connection_id, controller} pair
-/// - not exceed the 64 byte max length
-fn default_salt(connection_id: &str, controller: &str) -> Binary {
-    let mut hasher = Sha256::new();
-    hasher.update(connection_id.as_bytes());
-    hasher.update(controller.as_bytes());
-    hasher.finalize().to_vec().into()
 }

@@ -51,12 +51,14 @@ pub fn burn(
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "burn"));
-    msgs.push(TokenFactoryMsg::BurnTokens {
-        denom: coin.denom,
-        amount: coin.amount,
-        burn_from_address: from.into(),
-    }
-    .into());
+    msgs.push(
+        TokenFactoryMsg::BurnTokens {
+            denom: coin.denom,
+            amount: coin.amount,
+            burn_from_address: from.into(),
+        }
+        .into(),
+    );
 }
 
 pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
