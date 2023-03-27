@@ -1,21 +1,17 @@
-use cosmwasm_std::{to_binary, DepsMut, Env, IbcMsg, IbcTimeout, MessageInfo, Response};
-use one_types::{Action, PacketData, Trace};
+use cosmwasm_std::{
+    from_slice, to_binary, Binary, DepsMut, Env, IbcBasicResponse, IbcMsg, IbcPacket, IbcTimeout,
+    MessageInfo, Response, SubMsg, WasmMsg,
+};
+use one_types::{Action, PacketData, SenderExecuteMsg, Trace};
 use token_factory::TokenFactoryMsg;
 
 use crate::{
-    utils::Coins,
     error::ContractError,
-    msg::InstantiateMsg,
-    state::{ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
+    state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
     transfer::{burn, escrow},
+    utils::Coins,
+    AFTER_CALLBACK,
 };
-
-pub fn init(deps: DepsMut, msg: InstantiateMsg) -> Result<Response, ContractError> {
-    ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
-    DEFAULT_TIMEOUT_SECS.save(deps.storage, &msg.default_timeout_secs)?;
-
-    Ok(Response::new())
-}
 
 pub fn act(
     deps: DepsMut,
@@ -32,7 +28,11 @@ pub fn act(
     let mut traces = vec![];
 
     for action in &actions {
-        if let Action::Transfer { amount, .. } = action {
+        if let Action::Transfer {
+            amount,
+            ..
+        } = action
+        {
             // if the denom has a trace stored, then the current chain is the
             // source.
             // the last element of the trace must be the current chain, but no
@@ -86,4 +86,42 @@ pub fn act(
         })
         .add_attribute("action", "act")
         .add_attributes(attrs))
+}
+
+pub fn packet_lifecycle_complete(
+    packet: IbcPacket,
+    ack_bin: Option<Binary>,
+) -> Result<IbcBasicResponse, ContractError> {
+    // deserialize the original packet
+    let packet_data: PacketData = from_slice(&packet.data)?;
+
+    // deserialize the ack
+    let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
+
+    // TODO: refund escrowed tokens if the packet failed or timed out
+
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "packet_lifecycle_complete")
+        .add_attribute("channel_id", &packet.src.channel_id)
+        .add_attribute("sequence", packet.sequence.to_string())
+        .add_attribute("acknowledged", ack.is_some().to_string())
+        .add_attribute("sender", &packet_data.sender)
+        .add_submessage(SubMsg::reply_always(
+            WasmMsg::Execute {
+                contract_addr: packet_data.sender,
+                msg: to_binary(&SenderExecuteMsg::PacketCallback {
+                    channel_id: packet.src.channel_id,
+                    sequence: packet.sequence,
+                    ack,
+                })?,
+                funds: vec![],
+            },
+            AFTER_CALLBACK,
+        )))
+}
+
+pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, ContractError> {
+    Ok(Response::new()
+        .add_attribute("action", "after_callback")
+        .add_attribute("success", success.to_string()))
 }

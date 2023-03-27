@@ -7,11 +7,12 @@ use cosmwasm_std::{
 use token_factory::TokenFactoryMsg;
 
 use crate::{
-    action,
     error::ContractError,
-    execute, ibc,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    query, AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
+    query,
+    handshake,
+    state::{ACCOUNT_CODE_ID, DEFAULT_TIMEOUT_SECS},
+    AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION, controller, host,
 };
 
 #[entry_point]
@@ -22,7 +23,11 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    execute::init(deps, msg)
+
+    ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
+    DEFAULT_TIMEOUT_SECS.save(deps.storage, &msg.default_timeout_secs)?;
+
+    Ok(Response::new())
 }
 
 #[entry_point]
@@ -42,7 +47,7 @@ pub fn execute(
                 return Err(ContractError::EmptyActionQueue);
             }
 
-            execute::act(deps, env, info, connection_id, actions, timeout)
+            controller::act(deps, env, info, connection_id, actions, timeout)
         },
         ExecuteMsg::Handle {
             connection_id,
@@ -53,7 +58,7 @@ pub fn execute(
                 return Err(ContractError::Unauthorized);
             }
 
-            action::handle(deps, env, connection_id, controller, actions)
+            host::handle(deps, env, connection_id, controller, actions)
         },
     }
 }
@@ -65,9 +70,9 @@ pub fn reply(
     msg: Reply,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
     match msg.id {
-        AFTER_ACTION => action::after_action(deps, env, msg.result),
-        AFTER_ALL_ACTIONS => ibc::after_all_actions(msg.result),
-        AFTER_CALLBACK => ibc::after_callback(msg.result.is_ok()),
+        AFTER_ACTION => host::after_action(deps, env, msg.result),
+        AFTER_ALL_ACTIONS => host::after_all_actions(msg.result),
+        AFTER_CALLBACK => controller::after_callback(msg.result.is_ok()),
         id => unreachable!("unknown reply ID: `{id}`"),
     }
 }
@@ -113,11 +118,11 @@ pub fn ibc_channel_open(
     match msg {
         IbcChannelOpenMsg::OpenInit {
             channel,
-        } => ibc::open_init(deps, channel),
+        } => handshake::open_init(deps, channel),
         IbcChannelOpenMsg::OpenTry {
             channel,
             counterparty_version,
-        } => ibc::open_try(deps, channel, counterparty_version),
+        } => handshake::open_try(deps, channel, counterparty_version),
     }
 }
 
@@ -127,7 +132,7 @@ pub fn ibc_channel_connect(
     _env: Env,
     msg: IbcChannelConnectMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    ibc::open_connect(deps, msg.channel(), msg.counterparty_version())
+    handshake::open_connect(deps, msg.channel(), msg.counterparty_version())
 }
 
 #[entry_point]
@@ -136,7 +141,7 @@ pub fn ibc_channel_close(
     _env: Env,
     msg: IbcChannelCloseMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    ibc::close(msg)
+    handshake::close(msg)
 }
 
 #[entry_point]
@@ -145,7 +150,7 @@ pub fn ibc_packet_receive(
     env: Env,
     msg: IbcPacketReceiveMsg,
 ) -> Result<IbcReceiveResponse, ContractError> {
-    ibc::packet_receive(deps, env, msg.packet)
+    host::packet_receive(deps, env, msg.packet)
 }
 
 #[entry_point]
@@ -154,7 +159,7 @@ pub fn ibc_packet_ack(
     _env: Env,
     msg: IbcPacketAckMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    ibc::packet_lifecycle_complete(msg.original_packet, Some(msg.acknowledgement.data))
+    controller::packet_lifecycle_complete(msg.original_packet, Some(msg.acknowledgement.data))
 }
 
 #[entry_point]
@@ -163,5 +168,5 @@ pub fn ibc_packet_timeout(
     _env: Env,
     msg: IbcPacketTimeoutMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    ibc::packet_lifecycle_complete(msg.packet, None)
+    controller::packet_lifecycle_complete(msg.packet, None)
 }

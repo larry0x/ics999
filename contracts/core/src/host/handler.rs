@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
-    Env, QueryRequest, Response, StdResult, Storage, SubMsg, SubMsgResult, SystemResult, WasmMsg,
+    Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -15,27 +15,6 @@ use crate::{
     AFTER_ACTION,
 };
 
-pub fn handle(
-    deps: DepsMut,
-    env: Env,
-    connection_id: String,
-    controller: String,
-    actions: Vec<Action>,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
-    let handler = Handler::create(deps.storage, connection_id, controller, actions)?;
-    handler.handle_next_action(deps, env)
-}
-
-pub fn after_action(
-    deps: DepsMut,
-    env: Env,
-    res: SubMsgResult,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
-    let mut handler = Handler::load(deps.storage)?;
-    handler.handle_result(res.unwrap().data)?; // reply on success so unwrap can't fail
-    handler.handle_next_action(deps, env)
-}
-
 const HANDLER: Item<Handler> = Item::new("handler");
 
 /// An ICS-999 packet contains one or more `Action`'s that need to be executed
@@ -45,7 +24,7 @@ const HANDLER: Item<Handler> = Item::new("handler");
 /// executing the actions. It also implements serde traits so that it can be
 /// saved/loaded from the contract store.
 #[cw_serde]
-struct Handler {
+pub(super) struct Handler {
     /// The connection the packet was sent from
     pub connection_id: String,
 
