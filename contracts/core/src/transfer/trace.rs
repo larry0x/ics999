@@ -2,39 +2,15 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{HexBinary, IbcEndpoint};
 use ripemd::{Digest, Ripemd160};
 
-/// This is used in the packet, which includes both the trace and the denom on
-/// the sender chain.
+/// Similar to one_types::Trace, but without the `denom` field (which will be
+/// used as the key in contract storage). Also implements some helper methods.
 #[cw_serde]
-pub struct DenomTraceItem {
-    pub denom: String,
+pub struct TraceItem {
     pub base_denom: String,
     pub path: Vec<IbcEndpoint>,
 }
 
-/// DenomTrace includes the token's original denom and the path it had travelled
-/// to arrive at the current chain. It is used to derive the voucher denom in
-/// such a way that there's a unique voucher denom for each token and each path.
-#[cw_serde]
-pub struct DenomTrace {
-    /// The token's original denom
-    pub base_denom: String,
-
-    /// The path the token took to arrived to the current chain.
-    ///
-    /// At each stop, the chain is appended to the end of the array. For example,
-    /// consider a token being transferred via this path:
-    ///
-    ///   chainA --> chainB --> chainC
-    ///
-    /// - on chain B, the path is \[A\]
-    /// - on chain C, the path is \[A, B\]
-    ///
-    /// Note, this is different from ICS-20, where the latest chain is prefixed
-    /// (instead of appended) to the beginning of the trace.
-    pub path: Vec<IbcEndpoint>,
-}
-
-impl DenomTrace {
+impl TraceItem {
     pub fn new(base_denom: impl Into<String>) -> Self {
         Self {
             base_denom: base_denom.into(),

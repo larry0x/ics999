@@ -14,4 +14,3 @@ rust-version  = { workspace = true }
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true, features = ["ibc3"] }
-ripemd          = { workspace = true }

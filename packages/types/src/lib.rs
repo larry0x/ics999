@@ -1,9 +1,5 @@
-mod transfer;
-
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin, IbcOrder, WasmMsg, WasmQuery};
-
-pub use transfer::{DenomTrace, DenomTraceItem};
+use cosmwasm_std::{Binary, Coin, IbcEndpoint, IbcOrder, WasmMsg, WasmQuery};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -24,7 +20,7 @@ pub struct PacketData {
     /// Traces of each token that is being transferred.
     /// Receiver chain uses this to determine whether it's the sender or sink.
     /// Must include ALL tokens that are being transferred.
-    pub traces: Vec<DenomTraceItem>,
+    pub traces: Vec<Trace>,
 }
 
 /// ICS-999 packet acknowledgement
@@ -132,6 +128,34 @@ pub enum ActionResult {
         /// The querying contract is responsible for decoding the response
         response: Binary,
     },
+}
+
+/// Trace includes the token's original denom and the path it had travelled to
+/// arrive at the current chain.
+///
+/// It is used to derive the voucher denom in such a way that there's a unique
+/// voucher denom for each token and each path.
+#[cw_serde]
+pub struct Trace {
+    /// The token's denom on the packet sender chain
+    pub denom: String,
+
+    /// The token's original denom
+    pub base_denom: String,
+
+    /// The path the token took to arrived to the current chain.
+    ///
+    /// At each stop, the chain is appended to the end of the array. For example,
+    /// consider a token being transferred via this path:
+    ///
+    ///   chainA --> chainB --> chainC
+    ///
+    /// - on chain B, the path is \[A\]
+    /// - on chain C, the path is \[A, B\]
+    ///
+    /// Note, this is different from ICS-20, where the latest chain is prefixed
+    /// (instead of appended) to the beginning of the trace.
+    pub path: Vec<IbcEndpoint>,
 }
 
 /// If the sender contract wishes to receive a callback after the completion of

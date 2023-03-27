@@ -510,6 +510,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "one-types",
+ "ripemd",
  "sha2 0.10.6",
  "thiserror",
  "token-factory",
@@ -521,7 +522,6 @@ version = "0.0.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "ripemd",
 ]
 
 [[package]]

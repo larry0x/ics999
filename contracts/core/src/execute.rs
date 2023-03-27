@@ -2,7 +2,7 @@ use cosmwasm_std::{
     attr, coin, to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, DepsMut, Env, IbcMsg,
     IbcTimeout, MessageInfo, QuerierWrapper, Response, Uint128,
 };
-use one_types::{Action, PacketData, DenomTraceItem};
+use one_types::{Action, PacketData, Trace};
 use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
@@ -42,7 +42,7 @@ pub fn act(
             match DENOM_TRACES.may_load(deps.storage, &amount.denom)? {
                 // current chain is the sink -- burn voucher token
                 Some(trace) => {
-                    traces.push(DenomTraceItem {
+                    traces.push(Trace {
                         denom: amount.denom.clone(),
                         base_denom: trace.base_denom,
                         path: trace.path,

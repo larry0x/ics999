@@ -1,6 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, HexBinary, IbcTimeout};
-use one_types::{Action, DenomTrace};
+use one_types::{Action, Trace};
+
+use crate::transfer::TraceItem;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -60,17 +62,17 @@ pub enum QueryMsg {
     /// Compute the denom hash of a given denom trace
     #[returns(HexBinary)]
     DenomHash {
-        trace: DenomTrace,
+        trace: TraceItem,
     },
 
     /// Query the denom trace associated with a given denom hash
-    #[returns(DenomTraceResponse)]
+    #[returns(Trace)]
     DenomTrace {
         denom: String,
     },
 
     /// Iterate all known denom traces
-    #[returns(Vec<DenomTraceResponse>)]
+    #[returns(Vec<Trace>)]
     DenomTraces {
         start_after: Option<String>,
         limit: Option<u32>,
@@ -108,12 +110,6 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     pub account_code_id: u64,
     pub default_timeout_secs: u64,
-}
-
-#[cw_serde]
-pub struct DenomTraceResponse {
-    pub denom: String,
-    pub trace: DenomTrace,
 }
 
 #[cw_serde]

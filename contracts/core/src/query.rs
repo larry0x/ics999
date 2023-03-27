@@ -2,8 +2,10 @@ use cosmwasm_std::{Deps, StdResult};
 use cw_paginate::paginate_map;
 use cw_storage_plus::Bound;
 
+use one_types::Trace;
+
 use crate::{
-    msg::{AccountResponse, ActiveChannelResponse, ConfigResponse, DenomTraceResponse},
+    msg::{AccountResponse, ActiveChannelResponse, ConfigResponse},
     state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
 };
 
@@ -14,10 +16,12 @@ pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-pub fn denom_trace(deps: Deps, denom: String) -> StdResult<DenomTraceResponse> {
-    Ok(DenomTraceResponse {
-        trace: DENOM_TRACES.load(deps.storage, &denom)?,
+pub fn denom_trace(deps: Deps, denom: String) -> StdResult<Trace> {
+    let trace = DENOM_TRACES.load(deps.storage, &denom)?;
+    Ok(Trace {
         denom,
+        base_denom: trace.base_denom,
+        path: trace.path,
     })
 }
 
@@ -25,12 +29,13 @@ pub fn denom_traces(
     deps: Deps,
     start_after: Option<String>,
     limit: Option<u32>,
-) -> StdResult<Vec<DenomTraceResponse>> {
+) -> StdResult<Vec<Trace>> {
     let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
     paginate_map(&DENOM_TRACES, deps.storage, start, limit, |denom, trace| {
-        Ok(DenomTraceResponse {
+        Ok(Trace {
             denom,
-            trace,
+            base_denom: trace.base_denom,
+            path: trace.path,
         })
     })
 }
