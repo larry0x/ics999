@@ -1,15 +1,15 @@
 use cosmwasm_std::{
-    from_slice, to_binary, Binary, DepsMut, Env, IbcBasicResponse, IbcMsg, IbcPacket, IbcTimeout,
-    MessageInfo, Response, SubMsg, WasmMsg, IbcEndpoint,
+    from_slice, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
+    IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
 };
-use one_types::{Action, PacketData, SenderExecuteMsg};
+use one_types::{Action, PacketAck, PacketData, SenderExecuteMsg};
 use token_factory::TokenFactoryMsg;
 
 use crate::{
     error::ContractError,
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
-    transfer::{burn, escrow, TraceItem},
-    utils::{Coins, query_port},
+    transfer::{burn, escrow, mint, release, TraceItem},
+    utils::{query_port, Coins},
     AFTER_CALLBACK,
 };
 
@@ -28,33 +28,21 @@ pub fn act(
     let mut traces = vec![];
 
     // find the current chain's port and channel IDs
-    let localhost = IbcEndpoint {
-        port_id: query_port(&deps.querier)?,
-        channel_id: ACTIVE_CHANNELS.load(deps.storage, &connection_id)?,
-    };
+    let localhost = localhost(deps.as_ref(), &connection_id)?;
 
     // go through all transfer actions, either escrow or burn the coins based on
     // whether the current chain is the source or the sink.
     // also, compose the traces which will be included in the packet.
     for action in &actions {
-        if let Action::Transfer {
-            amount,
-            ..
-        } = action
-        {
-            // load the denom's trace
-            // if there isn't a trace stored for this denom, then the current
-            // chain must be the source. in this case we initialize a new trace
-            let trace = DENOM_TRACES
-                .may_load(deps.storage, &amount.denom)?
-                .unwrap_or_else(|| TraceItem::new(&amount.denom, &localhost));
+        if let Action::Transfer { amount, .. } = action {
+            let trace = trace_of(deps.storage, &amount.denom, &localhost)?;
 
             if trace.is_source(&localhost) {
-                // current chain is the sink -- burn voucher token
-                burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
-            } else {
                 // current chain is the source -- escrow
                 escrow(amount, &mut attrs);
+            } else {
+                // current chain is the sink -- burn voucher token
+                burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
             }
 
             traces.push(trace.into_full_trace(&amount.denom));
@@ -96,16 +84,36 @@ pub fn act(
 }
 
 pub fn packet_lifecycle_complete(
+    deps: DepsMut,
     packet: IbcPacket,
     ack_bin: Option<Binary>,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
+    let mut msgs = vec![];
+    let mut attrs = vec![];
+
     // deserialize the original packet
     let packet_data: PacketData = from_slice(&packet.data)?;
 
     // deserialize the ack
     let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
 
-    // TODO: refund escrowed tokens if the packet failed or timed out
+    // process refund if the packet timed out or failed
+    if should_refund(&ack) {
+        for action in &packet_data.actions {
+            if let Action::Transfer { amount, .. } = action {
+                let trace = trace_of(deps.storage, &amount.denom, &packet.src)?;
+
+                // do the reverse of what was done in `act`
+                // if the tokens were escrowed, then release them
+                // if the tokens were burned, then mint them
+                if trace.is_source(&packet.src) {
+                    release(amount.clone(), &packet_data.sender, &mut msgs, &mut attrs);
+                } else {
+                    mint(amount.clone(), &packet_data.sender, &mut msgs, &mut attrs);
+                }
+            }
+        }
+    }
 
     Ok(IbcBasicResponse::new()
         .add_attribute("action", "packet_lifecycle_complete")
@@ -113,6 +121,8 @@ pub fn packet_lifecycle_complete(
         .add_attribute("sequence", packet.sequence.to_string())
         .add_attribute("acknowledged", ack.is_some().to_string())
         .add_attribute("sender", &packet_data.sender)
+        .add_attributes(attrs)
+        .add_messages(msgs)
         .add_submessage(SubMsg::reply_always(
             WasmMsg::Execute {
                 contract_addr: packet_data.sender,
@@ -127,8 +137,41 @@ pub fn packet_lifecycle_complete(
         )))
 }
 
+// this method must succeed whether the callback was successful or not
+// if the callback failed, we simply log it here
 pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, ContractError> {
     Ok(Response::new()
         .add_attribute("action", "after_callback")
         .add_attribute("success", success.to_string()))
+}
+
+/// Find the trace associated with a denom.
+///
+/// If there isn't a trace stored for this denom, then the current chain must be
+/// the source. In this case, initialize a new trace with the current chain
+/// being the first and only step in the path.
+fn trace_of(store: &dyn Storage, denom: &str, localhost: &IbcEndpoint) -> StdResult<TraceItem> {
+    Ok(DENOM_TRACES
+        .may_load(store, &denom)?
+        .unwrap_or_else(|| TraceItem::new(&denom, &localhost)))
+}
+
+fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
+    Ok(IbcEndpoint {
+        port_id: query_port(&deps.querier)?,
+        channel_id: ACTIVE_CHANNELS.load(deps.storage, connection_id)?,
+    })
+}
+
+fn should_refund(ack: &Option<PacketAck>) -> bool {
+    match ack {
+        // packet timed out -- refund
+        None => true,
+
+        // packet acknowledged but errored -- refund
+        Some(PacketAck::Error(_)) => true,
+
+        // packet acknowledged and succeeded -- no refund
+        Some(PacketAck::Results(_)) => false,
+    }
 }

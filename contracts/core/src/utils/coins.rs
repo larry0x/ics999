@@ -36,6 +36,10 @@ impl From<Coins> for Vec<Coin> {
 
 impl fmt::Display for Coins {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_empty() {
+            return write!(f, "[]");
+        }
+
         let s = self
             .0
             .iter()
@@ -49,6 +53,10 @@ impl fmt::Display for Coins {
 impl Coins {
     pub fn empty() -> Self {
         Self(BTreeMap::new())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn add(&mut self, new_coin: Coin) -> Result<(), ContractError> {

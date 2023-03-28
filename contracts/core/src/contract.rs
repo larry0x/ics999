@@ -156,18 +156,18 @@ pub fn ibc_packet_receive(
 
 #[entry_point]
 pub fn ibc_packet_ack(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     msg: IbcPacketAckMsg,
-) -> Result<IbcBasicResponse, ContractError> {
-    controller::packet_lifecycle_complete(msg.original_packet, Some(msg.acknowledgement.data))
+) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
+    controller::packet_lifecycle_complete(deps, msg.original_packet, Some(msg.acknowledgement.data))
 }
 
 #[entry_point]
 pub fn ibc_packet_timeout(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     msg: IbcPacketTimeoutMsg,
-) -> Result<IbcBasicResponse, ContractError> {
-    controller::packet_lifecycle_complete(msg.packet, None)
+) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
+    controller::packet_lifecycle_complete(deps, msg.packet, None)
 }
