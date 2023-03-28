@@ -1,7 +1,7 @@
 mod coins;
 
 use cosmwasm_std::{
-    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest,
+    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest, StdResult,
 };
 use sha2::{Digest, Sha256};
 
@@ -33,12 +33,20 @@ pub fn connection_of_channel(
     }))?;
 
     let Some(chan) = chan_res.channel else {
-        let port_res: PortIdResponse = querier.query(&QueryRequest::Ibc(IbcQuery::PortId {}))?;
         return Err(ContractError::ChannelNotFound {
-            port_id: port_res.port_id,
+            port_id: query_port(querier)?,
             channel_id: channel_id.into(),
         });
     };
 
     Ok(chan.connection_id)
+}
+
+/// Query the port ID bound to the current contract.
+///
+/// Ideally we can simply to querier.query_port but this function isn't
+/// available yet.
+pub fn query_port(querier: &QuerierWrapper) -> StdResult<String> {
+    querier.query::<PortIdResponse>(&QueryRequest::Ibc(IbcQuery::PortId {}))
+        .map(|res| res.port_id)
 }

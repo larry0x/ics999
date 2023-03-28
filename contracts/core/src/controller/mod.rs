@@ -1,15 +1,15 @@
 use cosmwasm_std::{
     from_slice, to_binary, Binary, DepsMut, Env, IbcBasicResponse, IbcMsg, IbcPacket, IbcTimeout,
-    MessageInfo, Response, SubMsg, WasmMsg,
+    MessageInfo, Response, SubMsg, WasmMsg, IbcEndpoint,
 };
-use one_types::{Action, PacketData, SenderExecuteMsg, Trace};
+use one_types::{Action, PacketData, SenderExecuteMsg};
 use token_factory::TokenFactoryMsg;
 
 use crate::{
     error::ContractError,
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
-    transfer::{burn, escrow},
-    utils::Coins,
+    transfer::{burn, escrow, TraceItem},
+    utils::{Coins, query_port},
     AFTER_CALLBACK,
 };
 
@@ -19,7 +19,7 @@ pub fn act(
     info: MessageInfo,
     connection_id: String,
     actions: Vec<Action>,
-    opt_timeout: Option<IbcTimeout>,
+    timeout: Option<IbcTimeout>,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let received_funds = Coins::from(info.funds);
     let mut sending_funds = Coins::empty();
@@ -27,37 +27,43 @@ pub fn act(
     let mut attrs = vec![];
     let mut traces = vec![];
 
+    // find the current chain's port and channel IDs
+    let localhost = IbcEndpoint {
+        port_id: query_port(&deps.querier)?,
+        channel_id: ACTIVE_CHANNELS.load(deps.storage, &connection_id)?,
+    };
+
+    // go through all transfer actions, either escrow or burn the coins based on
+    // whether the current chain is the source or the sink.
+    // also, compose the traces which will be included in the packet.
     for action in &actions {
         if let Action::Transfer {
             amount,
             ..
         } = action
         {
-            // if the denom has a trace stored, then the current chain is the
-            // source.
-            // the last element of the trace must be the current chain, but no
-            // need to verify it here.
-            match DENOM_TRACES.may_load(deps.storage, &amount.denom)? {
-                // current chain is the sink -- burn voucher token
-                Some(trace) => {
-                    traces.push(Trace {
-                        denom: amount.denom.clone(),
-                        base_denom: trace.base_denom,
-                        path: trace.path,
-                    });
-                    burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
-                },
+            // load the denom's trace
+            // if there isn't a trace stored for this denom, then the current
+            // chain must be the source. in this case we initialize a new trace
+            let trace = DENOM_TRACES
+                .may_load(deps.storage, &amount.denom)?
+                .unwrap_or_else(|| TraceItem::new(&amount.denom, &localhost));
 
+            if trace.is_source(&localhost) {
+                // current chain is the sink -- burn voucher token
+                burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
+            } else {
                 // current chain is the source -- escrow
-                None => {
-                    escrow(amount, &mut attrs);
-                },
+                escrow(amount, &mut attrs);
             }
 
+            traces.push(trace.into_full_trace(&amount.denom));
             sending_funds.add(amount.clone())?;
         }
     }
 
+    // the total amount of coins the user has sent to the contract must equal
+    // the amount they want to transfer via IBC
     if received_funds != sending_funds {
         return Err(ContractError::FundsMismatch {
             actual: received_funds,
@@ -65,7 +71,8 @@ pub fn act(
         });
     }
 
-    let timeout = match opt_timeout {
+    // if the user does not specify a timeout, we use the default
+    let timeout = match timeout {
         None => {
             let default_secs = DEFAULT_TIMEOUT_SECS.load(deps.storage)?;
             IbcTimeout::with_timestamp(env.block.time.plus_seconds(default_secs))
@@ -76,7 +83,7 @@ pub fn act(
     Ok(Response::new()
         .add_messages(msgs)
         .add_message(IbcMsg::SendPacket {
-            channel_id: ACTIVE_CHANNELS.load(deps.storage, &connection_id)?,
+            channel_id: localhost.channel_id,
             data: to_binary(&PacketData {
                 sender: info.sender.into(),
                 actions,

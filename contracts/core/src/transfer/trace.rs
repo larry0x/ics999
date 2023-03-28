@@ -1,20 +1,43 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{HexBinary, IbcEndpoint};
+use one_types::Trace;
 use ripemd::{Digest, Ripemd160};
 
-/// Similar to one_types::Trace, but without the `denom` field (which will be
-/// used as the key in contract storage). Also implements some helper methods.
+/// Similar to one_types::Trace ("full trace"), but without the `denom` field
+/// (which will be used as the key in contract storage). Also implements some
+/// helper methods.
 #[cw_serde]
 pub struct TraceItem {
     pub base_denom: String,
     pub path: Vec<IbcEndpoint>,
 }
 
-impl TraceItem {
-    pub fn new(base_denom: impl Into<String>) -> Self {
+impl From<&Trace> for TraceItem {
+    fn from(trace: &Trace) -> Self {
         Self {
-            base_denom: base_denom.into(),
-            path: vec![],
+            base_denom: trace.base_denom.clone(),
+            path: trace.path.clone(),
+        }
+    }
+}
+
+impl TraceItem {
+    /// Create a new trace item with the current chain as the first and only
+    /// chain on the path.
+    pub fn new(base_denom: &str, localhost: &IbcEndpoint) -> Self {
+        Self {
+            base_denom: base_denom.to_owned(),
+            path: vec![localhost.clone()],
+        }
+    }
+
+    /// Combine the trace item with the denom on the current chain to form the
+    /// full trace.
+    pub fn into_full_trace(self, denom: &str) -> Trace {
+        Trace {
+            denom: denom.to_owned(),
+            base_denom: self.base_denom,
+            path: self.path,
         }
     }
 
