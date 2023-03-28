@@ -43,7 +43,7 @@ pub fn open_connect(
     ACTIVE_CHANNELS.save(deps.storage, &channel.connection_id, &channel.endpoint.channel_id)?;
 
     Ok(IbcBasicResponse::new()
-        .add_attribute("action", "open_connect")
+        .add_attribute("method", "open_connect")
         .add_attribute("connection_id", &channel.connection_id)
         .add_attribute("port_id", &channel.endpoint.port_id)
         .add_attribute("channel_id", &channel.endpoint.channel_id))

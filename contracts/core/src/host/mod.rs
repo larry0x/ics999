@@ -26,7 +26,7 @@ pub fn packet_receive(
     // we don't add an ack in this response
     // the ack will be added in after_all_actions reply (see below)
     Ok(IbcReceiveResponse::new()
-        .add_attribute("action", "packet_receive")
+        .add_attribute("method", "packet_receive")
         .add_attribute("connection_id", &connection_id)
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
@@ -86,7 +86,7 @@ pub fn after_all_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>,
     };
 
     Ok(Response::new()
-        .add_attribute("action", "after_all_actions")
+        .add_attribute("method", "after_all_actions")
         .add_attribute("success", res.is_ok().to_string())
         // wasmd will interpret this data field as the ack, overriding the ack
         // emitted in the ibc_packet_receive entry point

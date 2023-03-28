@@ -37,7 +37,7 @@ pub fn instantiate(
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(info.sender.as_str()))?;
 
     Ok(Response::new()
-        .add_attribute("action", "instantiate")
+        .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender))
 }
 
@@ -52,7 +52,7 @@ pub fn execute(
 
     Ok(Response::new()
         .add_submessage(SubMsg::reply_on_success(msg, REPLY_ID))
-        .add_attribute("action", "execute"))
+        .add_attribute("method", "execute"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

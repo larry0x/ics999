@@ -79,7 +79,7 @@ pub fn act(
             })?,
             timeout,
         })
-        .add_attribute("action", "act")
+        .add_attribute("method", "act")
         .add_attributes(attrs))
 }
 
@@ -116,7 +116,7 @@ pub fn packet_lifecycle_complete(
     }
 
     Ok(IbcBasicResponse::new()
-        .add_attribute("action", "packet_lifecycle_complete")
+        .add_attribute("method", "packet_lifecycle_complete")
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
         .add_attribute("acknowledged", ack.is_some().to_string())
@@ -141,7 +141,7 @@ pub fn packet_lifecycle_complete(
 // if the callback failed, we simply log it here
 pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, ContractError> {
     Ok(Response::new()
-        .add_attribute("action", "after_callback")
+        .add_attribute("method", "after_callback")
         .add_attribute("success", success.to_string()))
 }
 
