@@ -22,12 +22,11 @@ impl From<&Trace> for TraceItem {
 }
 
 impl TraceItem {
-    /// Create a new trace item with the current chain as the first and only
-    /// chain on the path.
-    pub fn new(base_denom: &str, localhost: &IbcEndpoint) -> Self {
+    /// Create a new trace item with an empty path
+    pub fn new(base_denom: &str) -> Self {
         Self {
             base_denom: base_denom.to_owned(),
-            path: vec![localhost.clone()],
+            path: vec![],
         }
     }
 

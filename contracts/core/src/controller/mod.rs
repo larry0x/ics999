@@ -153,7 +153,7 @@ pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, Contra
 fn trace_of(store: &dyn Storage, denom: &str, localhost: &IbcEndpoint) -> StdResult<TraceItem> {
     Ok(DENOM_TRACES
         .may_load(store, &denom)?
-        .unwrap_or_else(|| TraceItem::new(&denom, &localhost)))
+        .unwrap_or_else(|| TraceItem::new(&denom)))
 }
 
 fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {

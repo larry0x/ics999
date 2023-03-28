@@ -54,12 +54,13 @@ pub fn execute(
             connection_id,
             controller,
             actions,
+            traces,
         } => {
             if info.sender != env.contract.address {
                 return Err(ContractError::Unauthorized);
             }
 
-            host::handle(deps, env, connection_id, controller, actions)
+            host::handle(deps, env, connection_id, controller, actions, traces)
         },
     }
 }

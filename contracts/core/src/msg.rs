@@ -49,6 +49,7 @@ pub enum ExecuteMsg {
         connection_id: String,
         controller: String,
         actions: Vec<Action>,
+        traces: Vec<Trace>,
     },
 }
 

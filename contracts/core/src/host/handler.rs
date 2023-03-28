@@ -1,17 +1,18 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
-    Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, BankMsg, IbcEndpoint,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
-use one_types::{Action, ActionResult};
+use one_types::{Action, ActionResult, Trace};
 use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID},
-    utils::default_salt,
+    transfer::TraceItem,
+    utils::{connection_of_channel, default_salt},
     AFTER_ACTION,
 };
 
@@ -33,6 +34,9 @@ pub(super) struct Handler {
 
     /// The interchain account controlled by the sender
     pub host: Option<Addr>,
+
+    /// Traces of all tokens being transferred in the packet
+    pub traces: Vec<Trace>,
 
     /// The action is to be executed at the current step.
     /// None means all actions have finished executing.
@@ -68,6 +72,7 @@ impl Handler {
         connection_id: String,
         controller: String,
         mut actions: Vec<Action>,
+        traces: Vec<Trace>,
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
@@ -80,6 +85,7 @@ impl Handler {
             connection_id,
             controller,
             host,
+            traces,
             action: None,
             pending_actions: actions,
             results: vec![],
@@ -118,13 +124,53 @@ impl Handler {
                 .add_attributes(self.into_attributes()));
         };
 
-        // convert the action to the appropriate CosmosMsg
-        let msg = match action {
+        // convert the action to the appropriate msgs and event attributes
+        let msgs = match action {
             Action::Transfer {
-                amount: _,
-                recipient: _,
+                amount,
+                recipient,
             } => {
-                todo!("fungible token transfer is not implemented yet");
+                let mut trace: TraceItem = pd
+                    .traces
+                    .iter()
+                    .find(|trace| trace.denom == amount.denom)
+                    .ok_or_else(|| ContractError::TraceNotFound {
+                        denom: amount.denom,
+                    })?
+                    .into();
+
+                let recipient = match recipient {
+                    // if the sender doesn't specify the recipient, default to
+                    // their interchain account
+                    // error if the sender does not already own an ICA
+                    None => self.host.ok_or_else(|| ContractError::AccountNotFound {
+                        connection_id: self.connection_id,
+                        controller: self.controller,
+                    })?,
+
+                    // if the sender does specify a recipient, simply validate
+                    // the address
+                    Some(r) => deps.api.addr_validate(r)?,
+                };
+
+                if trace.is_source(&packet.dest) {
+                    // current chain is the source -- release tokens from escrow
+                    let msg = BankMsg::Send {
+                        to_address: recipient.into(),
+                        amount: amount.clone(),
+                    };
+
+                    vec![msg]
+                } else {
+                    // current chain is the sink -- mint voucher tokens
+                    let mut msgs = vec![];
+
+                    // append current chain to the path and derive the ibc denom
+                    trace.path.push(packet.dest.channel_id.clone());
+
+                    // if the trace is not already recorded onchain
+                    todo!();
+                }
             },
 
             Action::RegisterAccount {
@@ -161,14 +207,16 @@ impl Handler {
 
                 self.host = Some(addr);
 
-                WasmMsg::Instantiate2 {
+                let msg = WasmMsg::Instantiate2 {
                     admin: Some(env.contract.address.into()),
                     code_id,
                     label: format!("one-account/{}/{}", self.connection_id, self.controller),
                     msg: to_binary(&Empty {})?,
                     funds: vec![],
                     salt,
-                }
+                };
+
+                vec![msg]
             },
 
             Action::Execute(wasm_msg) => {
@@ -179,11 +227,13 @@ impl Handler {
                     });
                 };
 
-                WasmMsg::Execute {
+                let msg = WasmMsg::Execute {
                     contract_addr: addr.into(),
                     msg: to_binary(wasm_msg)?,
                     funds: vec![],
-                }
+                };
+
+                vec![msg]
             },
 
             Action::Query(wasm_query) => {
@@ -198,14 +248,15 @@ impl Handler {
                     response,
                 });
 
-                return self.handle_next_action(deps, env);
+                vec![]
             },
         };
 
         self.save(deps.storage)?;
 
         Ok(Response::new()
-            .add_attributes(self.into_attributes())
+            .add_attribute("method", "handle_next_action")
+            .add_attribute("actions_left", self.pending_actions.len().to_string())
             // note that we use reply_on_success here, meaning any one action
             // fail wil lead to the entire execute::handle method call to fail.
             // this this atomicity - a desired property

@@ -35,6 +35,11 @@ pub enum ContractError {
     #[error("ICS-999 channel may not be closed")]
     UnexpectedChannelClosure,
 
+    #[error("packet does not contain the trace for denom `{denom}`")]
+    TraceNotFound {
+        denom: String,
+    },
+
     #[error("incorrect amount of funds sent: expectiing `{expected}`, found `{actual}`")]
     FundsMismatch {
         actual: Coins,

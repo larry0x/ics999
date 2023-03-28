@@ -1,11 +1,11 @@
 mod handler;
 
 use cosmwasm_std::{
-    from_slice, to_binary, DepsMut, Env, IbcPacket, IbcReceiveResponse, Response, SubMsg,
-    SubMsgResponse, SubMsgResult, WasmMsg,
+    from_slice, to_binary, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
+    SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cw_utils::parse_execute_response_data;
-use one_types::{Action, PacketAck, PacketData};
+use one_types::{Action, PacketAck, PacketData, Trace};
 use token_factory::TokenFactoryMsg;
 
 use crate::{error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS};
@@ -37,6 +37,7 @@ pub fn packet_receive(
                     connection_id,
                     controller: pd.sender,
                     actions: pd.actions,
+                    traces: pd.traces,
                 })?,
                 funds: vec![],
             },
@@ -50,8 +51,9 @@ pub fn handle(
     connection_id: String,
     controller: String,
     actions: Vec<Action>,
+    traces: Vec<Trace>,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
-    let handler = Handler::create(deps.storage, connection_id, controller, actions)?;
+    let handler = Handler::create(deps.storage, connection_id, controller, actions, traces)?;
     handler.handle_next_action(deps, env)
 }
 
