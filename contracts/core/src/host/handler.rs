@@ -156,7 +156,7 @@ impl Handler {
                     Some(r) => deps.api.addr_validate(&r)?,
                 };
 
-                let msg: CosmosMsg<_> = if trace.sender_is_source(&self.src) {
+                if trace.sender_is_source(&self.src) {
                     // append current chain to the path
                     trace.path.push(self.dest.clone());
 
@@ -185,12 +185,14 @@ impl Handler {
                         recipient: recipient.to_string(),
                     });
 
-                    TokenFactoryMsg::MintTokens {
-                        denom,
-                        amount,
-                        mint_to_address: recipient.into(),
-                    }
-                    .into()
+                    response.add_submessage(SubMsg::reply_on_success(
+                        TokenFactoryMsg::MintTokens {
+                            denom,
+                            amount,
+                            mint_to_address: recipient.into(),
+                        },
+                        AFTER_ACTION,
+                    ))
                 } else {
                     // pop the sender chain from the path
                     trace.path.pop();
@@ -210,14 +212,14 @@ impl Handler {
                         amount,
                     };
 
-                    BankMsg::Send {
-                        to_address: recipient.into(),
-                        amount: vec![coin],
-                    }
-                    .into()
-                };
-
-                response.add_submessage(SubMsg::reply_on_success(msg, AFTER_ACTION))
+                    response.add_submessage(SubMsg::reply_on_success(
+                        BankMsg::Send {
+                            to_address: recipient.into(),
+                            amount: vec![coin],
+                        },
+                        AFTER_ACTION,
+                    ))
+                }
             },
 
             Action::RegisterAccount {
