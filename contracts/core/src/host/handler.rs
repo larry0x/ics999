@@ -113,6 +113,7 @@ impl Handler {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
 
         // grab the first action in the queue
+        self.action_index += 1;
         self.action = self.pending_actions.pop();
 
         // if there is no more action to execute
