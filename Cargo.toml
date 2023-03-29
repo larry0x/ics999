@@ -25,9 +25,6 @@ cw-ownable      = "0.5"
 cw-paginate     = "0.2"
 cw-storage-plus = "1.0"
 cw-utils        = "1.0"
-one-account     = { version = "0.0.0", path = "./contracts/account" }
-one-core        = { version = "0.0.0", path = "./contracts/core" }
-one-transfer    = { version = "0.0.0", path = "./contracts/transfer" }
 one-types       = { version = "0.0.0", path = "./packages/types" }
 ripemd          = "0.1"
 sha2            = "0.10"
