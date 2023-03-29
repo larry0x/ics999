@@ -95,9 +95,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             limit,
         } => to_binary(&query::denom_traces(deps, start_after, limit)?),
         QueryMsg::Account {
-            connection_id,
+            channel_id,
             controller,
-        } => to_binary(&query::account(deps, connection_id, controller)?),
+        } => to_binary(&query::account(deps, channel_id, controller)?),
         QueryMsg::Accounts {
             start_after,
             limit,

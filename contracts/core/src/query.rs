@@ -41,12 +41,12 @@ pub fn denom_traces(
 
 pub fn account(
     deps: Deps,
-    connection_id: String,
+    channel_id: String,
     controller: String,
 ) -> StdResult<AccountResponse> {
     Ok(AccountResponse {
-        address: ACCOUNTS.load(deps.storage, (&connection_id, &controller))?.into(),
-        connection_id,
+        address: ACCOUNTS.load(deps.storage, (&channel_id, &controller))?.into(),
+        channel_id,
         controller,
     })
 }
@@ -57,9 +57,9 @@ pub fn accounts(
     limit: Option<u32>,
 ) -> StdResult<Vec<AccountResponse>> {
     let start = start_after.as_ref().map(|(cid, con)| Bound::exclusive((cid.as_str(), con.as_str())));
-    paginate_map(&ACCOUNTS, deps.storage, start, limit, |(connection_id, controller), address| {
+    paginate_map(&ACCOUNTS, deps.storage, start, limit, |(channel_id, controller), address| {
         Ok(AccountResponse {
-            connection_id,
+            channel_id,
             controller,
             address: address.into(),
         })

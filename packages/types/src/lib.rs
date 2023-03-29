@@ -89,10 +89,10 @@ pub enum Action {
         salt: Option<Binary>,
     },
 
-    /// Instructs the interchain account to execute a wasm message
+    /// Instruct the interchain account to execute a message
     Execute(CosmosMsg),
 
-    /// Perform a wasm query
+    /// Perform a query
     Query(QueryRequest<Empty>),
 }
 

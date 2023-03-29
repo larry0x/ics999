@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, HexBinary, IbcEndpoint, IbcTimeout};
+use cosmwasm_std::{HexBinary, IbcEndpoint, IbcTimeout};
 use one_types::{Action, Trace};
 
 use crate::transfer::TraceItem;
@@ -8,12 +8,6 @@ use crate::transfer::TraceItem;
 pub struct InstantiateMsg {
     /// Code ID of the one-account contract
     pub account_code_id: u64,
-
-    /// Code ID of the one-transfer contract
-    pub transfer_code_id: u64,
-
-    /// A salt used for instantiating the transfer contract
-    pub transfer_salt: Binary,
 
     /// The default timeout (in seconds) if the user does not provide a timeout
     /// timestamp
@@ -83,7 +77,7 @@ pub enum QueryMsg {
     /// Interchain account controlled by a specific controller
     #[returns(AccountResponse)]
     Account {
-        connection_id: String,
+        channel_id: String,
         controller: String,
     },
 
@@ -116,7 +110,7 @@ pub struct ConfigResponse {
 
 #[cw_serde]
 pub struct AccountResponse {
-    pub connection_id: String,
+    pub channel_id: String,
     pub controller: String,
     pub address: String,
 }
