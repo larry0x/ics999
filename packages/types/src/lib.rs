@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, WasmMsg, WasmQuery, Uint128};
+use cosmwasm_std::{Binary, Empty, IbcEndpoint, IbcOrder, Uint128, CosmosMsg, QueryRequest};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -90,10 +90,10 @@ pub enum Action {
     },
 
     /// Instructs the interchain account to execute a wasm message
-    Execute(WasmMsg),
+    Execute(CosmosMsg),
 
     /// Perform a wasm query
-    Query(WasmQuery),
+    Query(QueryRequest<Empty>),
 }
 
 #[cw_serde]

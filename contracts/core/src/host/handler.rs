@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     instantiate2_address, to_binary, Addr, Binary, Coin, ContractResult, DepsMut, Empty, Env,
-    IbcEndpoint, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
@@ -264,7 +264,7 @@ impl Handler {
                     })
             },
 
-            Action::Execute(wasm_msg) => {
+            Action::Execute(cosmos_msg) => {
                 let Some(addr) = &self.host else {
                     return Err(ContractError::AccountNotFound {
                         channel_id: self.dest.channel_id,
@@ -277,15 +277,14 @@ impl Handler {
                     .add_submessage(SubMsg::reply_on_success(
                         WasmMsg::Execute {
                             contract_addr: addr.into(),
-                            msg: to_binary(&wasm_msg)?,
+                            msg: to_binary(&cosmos_msg)?,
                             funds: vec![],
                         },
                         AFTER_EXECUTE,
                     ))
             },
 
-            Action::Query(wasm_query) => {
-                let query_req = QueryRequest::Wasm::<TokenFactoryQuery>(wasm_query);
+            Action::Query(query_req) => {
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
