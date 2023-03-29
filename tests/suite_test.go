@@ -16,7 +16,7 @@ import (
 	tokenfactorytypes "github.com/CosmWasm/wasmd/x/tokenfactory/types"
 	wasmibctesting "github.com/CosmWasm/wasmd/x/wasm/ibctesting"
 
-	"ics999/e2e/types"
+	"ics999/tests/types"
 )
 
 type testSuite struct {
