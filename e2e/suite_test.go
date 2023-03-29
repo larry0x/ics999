@@ -50,6 +50,12 @@ type testChain struct {
 
 func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	// store contract codes
+	//
+	// NOTE: wasmd 0.30 uses the gas limit of 3,000,000 for simulation txs.
+	// however, our StoreCode txs easily go over this limit. we had to manually
+	// increase it. for tests to work.
+	// this will no longer be a problem with wasmd 0.31, which uses
+	// simtestutil.DefaultGenTxGas which is 10M.
 	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core-aarch64.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
 	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account-aarch64.wasm")
