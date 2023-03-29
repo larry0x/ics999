@@ -27,7 +27,7 @@ pub fn packet_receive(
     // the ack will be added in after_all_actions reply (see below)
     Ok(IbcReceiveResponse::new()
         .add_attribute("method", "packet_receive")
-        .add_attribute("connection_id", &connection_id)
+        .add_attribute("connection_id", connection_id)
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
         .add_submessage(SubMsg::reply_always(

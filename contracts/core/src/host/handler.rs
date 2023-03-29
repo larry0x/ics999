@@ -135,7 +135,7 @@ impl Handler {
                     .traces
                     .iter()
                     .find(|trace| trace.denom == src_denom)
-                    .ok_or_else(|| ContractError::TraceNotFound {
+                    .ok_or(ContractError::TraceNotFound {
                         denom: src_denom,
                     })?
                     .into();
@@ -229,9 +229,7 @@ impl Handler {
 
                 // if a salt is not provided, by default use:
                 // sha256(channel_id_bytes | controller_addr_bytes)
-                let salt = salt
-                    .clone()
-                    .unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
+                let salt = salt.unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
 
                 // load the one-account contract's code ID and checksum, which is
                 // used in Instantiate2 to determine the contract address
@@ -287,7 +285,7 @@ impl Handler {
             },
 
             Action::Query(wasm_query) => {
-                let query_req = QueryRequest::Wasm::<TokenFactoryQuery>(wasm_query.clone());
+                let query_req = QueryRequest::Wasm::<TokenFactoryQuery>(wasm_query);
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {

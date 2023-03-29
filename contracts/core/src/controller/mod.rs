@@ -36,7 +36,7 @@ pub fn act<Q: CustomQuery>(
     // also, compose the traces which will be included in the packet.
     for action in &actions {
         if let Action::Transfer { denom, amount, .. } = action {
-            let trace = trace_of(deps.storage, &denom)?;
+            let trace = trace_of(deps.storage, denom)?;
 
             let coin = Coin {
                 denom: denom.clone(),
@@ -49,7 +49,7 @@ pub fn act<Q: CustomQuery>(
                 burn(coin.clone(), &info.sender, &mut msgs, &mut attrs);
             }
 
-            traces.push(trace.into_full_trace(&denom));
+            traces.push(trace.into_full_trace(denom));
             sending_funds.add(coin)?;
         }
     }
@@ -103,7 +103,7 @@ pub fn packet_lifecycle_complete(
     if should_refund(&ack) {
         for action in &packet_data.actions {
             if let Action::Transfer { denom, amount, .. } = action {
-                let trace = trace_of(deps.storage, &denom)?;
+                let trace = trace_of(deps.storage, denom)?;
 
                 let coin = Coin {
                     denom: denom.clone(),
@@ -159,8 +159,8 @@ pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, Contra
 /// being the first and only step in the path.
 fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
     Ok(DENOM_TRACES
-        .may_load(store, &denom)?
-        .unwrap_or_else(|| TraceItem::new(&denom)))
+        .may_load(store, denom)?
+        .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
 fn localhost<Q: CustomQuery>(deps: Deps<Q>, connection_id: &str) -> StdResult<IbcEndpoint> {
