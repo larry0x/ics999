@@ -4,8 +4,9 @@ use cw_storage_plus::Bound;
 use one_types::Trace;
 
 use crate::{
-    msg::{AccountResponse, ActiveChannelResponse, ConfigResponse},
+    msg::{AccountResponse, ActiveChannelResponse, ConfigResponse, DenomHashResponse},
     state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
+    transfer::TraceItem,
 };
 
 pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -13,6 +14,12 @@ pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
         account_code_id: ACCOUNT_CODE_ID.load(deps.storage)?,
         default_timeout_secs: DEFAULT_TIMEOUT_SECS.load(deps.storage)?,
     })
+}
+
+pub fn denom_hash(trace: TraceItem) -> DenomHashResponse {
+    DenomHashResponse {
+        hash: trace.hash(),
+    }
 }
 
 pub fn denom_trace(deps: Deps, denom: String) -> StdResult<Trace> {

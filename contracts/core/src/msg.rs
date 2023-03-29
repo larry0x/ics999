@@ -56,7 +56,7 @@ pub enum QueryMsg {
     Config {},
 
     /// Compute the denom hash of a given denom trace
-    #[returns(HexBinary)]
+    #[returns(DenomHashResponse)]
     DenomHash {
         trace: TraceItem,
     },
@@ -106,6 +106,11 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     pub account_code_id: u64,
     pub default_timeout_secs: u64,
+}
+
+#[cw_serde]
+pub struct DenomHashResponse {
+    pub hash: HexBinary,
 }
 
 #[cw_serde]

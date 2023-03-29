@@ -86,7 +86,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config {} => to_binary(&query::config(deps)?),
         QueryMsg::DenomHash {
             trace,
-        } => to_binary(&trace.hash()),
+        } => to_binary(&query::denom_hash(trace)),
         QueryMsg::DenomTrace {
             denom,
         } => to_binary(&query::denom_trace(deps, denom)?),
