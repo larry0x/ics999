@@ -1,8 +1,6 @@
 use std::{collections::BTreeMap, fmt};
 
-use cosmwasm_std::{Coin, Uint128};
-
-use crate::error::ContractError;
+use cosmwasm_std::{Coin, Uint128, OverflowError};
 
 // denom => amount
 #[derive(Debug, PartialEq, Eq)]
@@ -59,7 +57,7 @@ impl Coins {
         self.0.is_empty()
     }
 
-    pub fn add(&mut self, new_coin: Coin) -> Result<(), ContractError> {
+    pub fn add(&mut self, new_coin: Coin) -> Result<(), OverflowError> {
         let amount = self.0.entry(new_coin.denom).or_insert_with(Uint128::zero);
         *amount = amount.checked_add(new_coin.amount)?;
         Ok(())
