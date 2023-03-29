@@ -41,10 +41,6 @@ pub(super) struct Handler {
     /// Traces of all tokens being transferred in the packet
     pub traces: Vec<Trace>,
 
-    /// Index of the current action being executed, starting from 0.
-    /// Used only for event logging.
-    pub action_index: u64,
-
     /// The action is to be executed at the current step.
     /// None means all actions have finished executing.
     pub action: Option<Action>,
@@ -84,7 +80,6 @@ impl Handler {
             controller,
             host,
             traces,
-            action_index: 0,
             action: None,
             pending_actions: actions,
             results: vec![],
@@ -113,7 +108,6 @@ impl Handler {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
 
         // grab the first action in the queue
-        self.action_index += 1;
         self.action = self.pending_actions.pop();
 
         // if there is no more action to execute
@@ -337,6 +331,6 @@ impl Handler {
     fn default_handle_action_response<T>(&self) -> Response<T> {
         Response::new()
             .add_attribute("method", "handle_next_action")
-            .add_attribute("action_index", self.action_index.to_string())
+            .add_attribute("actions_left", self.pending_actions.len().to_string())
     }
 }
