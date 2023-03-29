@@ -1,9 +1,9 @@
 package types
 
 import (
-	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
+	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 )
@@ -26,9 +26,9 @@ type Action struct {
 }
 
 type TransferAction struct {
-	Denom     string      `json:"denom"`
-	Amount    sdkmath.Int `json:"amount"`
-	Recipient string      `json:"recipient,omitempty"`
+	Denom     string  `json:"denom"`
+	Amount    sdk.Int `json:"amount"`
+	Recipient string  `json:"recipient,omitempty"`
 }
 
 type RegisterAccountAction struct {

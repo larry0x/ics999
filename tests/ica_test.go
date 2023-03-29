@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
+	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -332,7 +332,6 @@ func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddres
 }
 
 func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
-	fmt.Println("ACK:", ack)
 	require.NotEmpty(t, ack.Results)
 	require.Empty(t, ack.Error)
 }
