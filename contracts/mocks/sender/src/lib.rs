@@ -2,11 +2,12 @@ use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    WasmMsg,
+    coin, entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, OverflowError,
+    Response, StdResult, WasmMsg,
 };
 use cw_paginate::paginate_map;
 use cw_storage_plus::{Bound, Item, Map};
+use one_core::utils::Coins;
 use one_types::{Action, PacketAck};
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
@@ -109,6 +110,18 @@ pub fn execute(
         } => {
             let one_core_addr = ONE_CORE.load(deps.storage)?;
 
+            // compute the total amount of coins to be sent to one-core
+            // must equal to the sum of all the amounts in transfer actions
+            let funds = actions.iter().try_fold(
+                Coins::empty(),
+                |mut funds, action| -> Result<_, OverflowError> {
+                    if let Action::Transfer { denom, amount, .. } = action {
+                        funds.add(coin(amount.u128(), denom))?;
+                    }
+                    Ok(funds)
+                },
+            )?;
+
             Ok(Response::new()
                 .add_attribute("method", "send")
                 .add_attribute("connection_id", &connection_id)
@@ -120,7 +133,7 @@ pub fn execute(
                         actions,
                         timeout: None, // use the default timeout set by one-core
                     })?,
-                    funds: vec![],
+                    funds: funds.into(),
                 }))
         },
 
