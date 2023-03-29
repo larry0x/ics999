@@ -47,7 +47,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	require.Equal(suite.T(), suite.chainB.coreAddr.String(), accountInfo.Admin)
 	require.Equal(
 		suite.T(),
-		fmt.Sprintf("one-account/%s/%s", suite.pathAB.EndpointB.ConnectionID, suite.chainA.senderAddr.String()),
+		fmt.Sprintf("one-account/%s/%s", suite.pathAB.EndpointB.ChannelID, suite.chainA.senderAddr.String()),
 		accountInfo.Label,
 	)
 
