@@ -35,7 +35,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	// returned in the packet ack
 	accountAddr, err := queryAccount(
 		suite.chainB,
-		suite.pathAB.EndpointA.ConnectionID,
+		suite.pathAB.EndpointA.ChannelID,
 		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)
@@ -82,11 +82,13 @@ func (suite *testSuite) TestExecuteWasm() {
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
@@ -106,29 +108,35 @@ func (suite *testSuite) TestExecuteWasm() {
 	// test 2 - increment the number more times in a single packet
 	_, ack2, err := act(suite, []types.Action{
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
@@ -145,18 +153,22 @@ func (suite *testSuite) TestQuery() {
 	// query again
 	_, ack, err := act(suite, []types.Action{
 		{
-			Query: &wasmvmtypes.WasmQuery{
-				Raw: &wasmvmtypes.RawQuery{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Key:          []byte("number"),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Raw: &wasmvmtypes.RawQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Key:          []byte("number"),
+					},
 				},
 			},
 		},
 		{
-			Query: &wasmvmtypes.WasmQuery{
-				Smart: &wasmvmtypes.SmartQuery{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"number":{}}`),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
 				},
 			},
 		},
@@ -164,27 +176,33 @@ func (suite *testSuite) TestQuery() {
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
 		{
-			Query: &wasmvmtypes.WasmQuery{
-				Raw: &wasmvmtypes.RawQuery{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Key:          []byte("number"),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Raw: &wasmvmtypes.RawQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Key:          []byte("number"),
+					},
 				},
 			},
 		},
 		{
-			Query: &wasmvmtypes.WasmQuery{
-				Smart: &wasmvmtypes.SmartQuery{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"number":{}}`),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
 				},
 			},
 		},
@@ -203,19 +221,23 @@ func (suite *testSuite) TestCallback() {
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
 		{
-			Query: &wasmvmtypes.WasmQuery{
-				Smart: &wasmvmtypes.SmartQuery{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"number":{}}`),
+			Query: &wasmvmtypes.QueryRequest{
+				Wasm: &wasmvmtypes.WasmQuery{
+					Smart: &wasmvmtypes.SmartQuery{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"number":{}}`),
+					},
 				},
 			},
 		},
@@ -230,11 +252,13 @@ func (suite *testSuite) TestCallback() {
 	// do the same thing but with an intentionally failed packet
 	packet2, ack2, err := act(suite, []types.Action{
 		{
-			Execute: &wasmvmtypes.WasmMsg{
-				Execute: &wasmvmtypes.ExecuteMsg{
-					ContractAddr: suite.chainB.counterAddr.String(),
-					Msg:          []byte(`{"increment_but_fail":{}}`),
-					Funds:        wasmvmtypes.Coins{},
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.counterAddr.String(),
+						Msg:          []byte(`{"increment_but_fail":{}}`),
+						Funds:        wasmvmtypes.Coins{},
+					},
 				},
 			},
 		},
@@ -284,14 +308,14 @@ func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types
 	return packet, ack, nil
 }
 
-func queryAccount(chain *testChain, connectionID, controller string) (sdk.AccAddress, error) {
+func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddress, error) {
 	accountRes := types.AccountResponse{}
 	if err := chain.SmartQuery(
 		chain.coreAddr.String(),
 		types.CoreQueryMsg{
 			Account: &types.AccountQuery{
-				ConnectionID: connectionID,
-				Controller:   controller,
+				ChannelID:  channelID,
+				Controller: controller,
 			},
 		},
 		&accountRes,

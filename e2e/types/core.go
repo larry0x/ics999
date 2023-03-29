@@ -2,7 +2,6 @@ package types
 
 type CoreInstantiateMsg struct {
 	AccountCodeID      uint64 `json:"account_code_id"`
-	TransferCodeID     uint64 `json:"transfer_code_id"`
 	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
 }
 
@@ -32,14 +31,14 @@ type ConfigResponse struct {
 }
 
 type AccountQuery struct {
-	ConnectionID string `json:"connection_id"`
-	Controller   string `json:"controller"`
+	ChannelID  string `json:"channel_id"`
+	Controller string `json:"controller"`
 }
 
 type AccountResponse struct {
-	ConnectionID string `json:"connection_id"`
-	Controller   string `json:"controller"`
-	Address      string `json:"address"`
+	ChannelID  string `json:"channel_id"`
+	Controller string `json:"controller"`
+	Address    string `json:"address"`
 }
 
 type AccountsQuery struct {

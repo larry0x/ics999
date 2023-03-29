@@ -1,6 +1,8 @@
 package types
 
 import (
+	sdkmath "cosmossdk.io/math"
+
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -17,15 +19,16 @@ type PacketData struct {
 }
 
 type Action struct {
-	Transfer        *TransferAction        `json:"transfer,omitempty"`
-	RegisterAccount *RegisterAccountAction `json:"register_account,omitempty"`
-	Execute         *wasmvmtypes.WasmMsg   `json:"execute,omitempty"`
-	Query           *wasmvmtypes.WasmQuery `json:"query,omitempty"`
+	Transfer        *TransferAction           `json:"transfer,omitempty"`
+	RegisterAccount *RegisterAccountAction    `json:"register_account,omitempty"`
+	Execute         *wasmvmtypes.CosmosMsg    `json:"execute,omitempty"`
+	Query           *wasmvmtypes.QueryRequest `json:"query,omitempty"`
 }
 
 type TransferAction struct {
-	Amount    wasmvmtypes.Coins `json:"amount"`
-	Recipient string            `json:"recipient,omitempty"`
+	Denom     string       `json:"denom"`
+	Amount    sdkmath.Uint `json:"amount"`
+	Recipient string       `json:"recipient,omitempty"`
 }
 
 type RegisterAccountAction struct {
@@ -45,8 +48,9 @@ type ActionResult struct {
 }
 
 type TransferResult struct {
-	Amount    wasmvmtypes.Coins `json:"amount"`
-	Recipient string            `json:"recipient"`
+	Denom     string `json:"denom"`
+	NewToken  bool   `json:"new_token"`
+	Recipient string `json:"recipient"`
 }
 
 type RegisterAccountResult struct {
