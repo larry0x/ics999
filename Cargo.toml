@@ -3,7 +3,6 @@ members = [
   "contracts/account",
   "contracts/core",
   "contracts/mocks/*",
-  "packages/*",
 ]
 
 [workspace.package]
@@ -25,7 +24,6 @@ cw-ownable      = "0.5"
 cw-paginate     = "0.2"
 cw-storage-plus = "1.0"
 cw-utils        = "1.0"
-one-types       = { version = "0.0.0", path = "./packages/types" }
 ripemd          = "0.1"
 sha2            = "0.10"
 thiserror       = "1"

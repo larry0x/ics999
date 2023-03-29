@@ -469,6 +469,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-dex"
+version = "0.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "thiserror",
+]
+
+[[package]]
 name = "mock-sender"
 version = "0.0.0"
 dependencies = [
@@ -477,7 +487,6 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus",
  "one-core",
- "one-types",
  "thiserror",
 ]
 
@@ -509,19 +518,10 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
- "one-types",
  "ripemd",
  "sha2 0.10.6",
  "thiserror",
  "token-factory",
-]
-
-[[package]]
-name = "one-types"
-version = "0.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
 ]
 
 [[package]]
