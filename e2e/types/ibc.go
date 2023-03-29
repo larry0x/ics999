@@ -26,9 +26,9 @@ type Action struct {
 }
 
 type TransferAction struct {
-	Denom     string       `json:"denom"`
-	Amount    sdkmath.Uint `json:"amount"`
-	Recipient string       `json:"recipient,omitempty"`
+	Denom     string      `json:"denom"`
+	Amount    sdkmath.Int `json:"amount"`
+	Recipient string      `json:"recipient,omitempty"`
 }
 
 type RegisterAccountAction struct {

@@ -13,6 +13,7 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
 
+	tokenfactorytypes "github.com/CosmWasm/wasmd/x/tokenfactory/types"
 	wasmibctesting "github.com/CosmWasm/wasmd/x/wasm/ibctesting"
 
 	"ics999/e2e/types"
@@ -25,17 +26,30 @@ type testSuite struct {
 
 	chainA *testChain
 	chainB *testChain
+	chainC *testChain
 
 	pathAB *wasmibctesting.Path
+	pathBC *wasmibctesting.Path
 }
 
 func (suite *testSuite) SetupTest() {
-	suite.coordinator = wasmibctesting.NewCoordinator(suite.T(), 2)
+	suite.coordinator = wasmibctesting.NewCoordinator(suite.T(), 3)
 
-	suite.chainA = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(0)))
-	suite.chainB = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(1)))
+	suite.chainA = setupChain(
+		suite.T(),
+		suite.coordinator.GetChain(wasmibctesting.GetChainID(0)),
+		sdk.NewCoin("uastro", sdk.NewInt(100_000_000)),
+		sdk.NewCoin("umars", sdk.NewInt(100_000_000)),
+	)
+	suite.chainB = setupChain(
+		suite.T(),
+		suite.coordinator.GetChain(wasmibctesting.GetChainID(1)),
+		sdk.NewCoin("uusdc", sdk.NewInt(100_000_000)),
+	)
+	suite.chainC = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(2)))
 
 	suite.pathAB = setupConnection(suite.coordinator, suite.chainA, suite.chainB)
+	suite.pathBC = setupConnection(suite.coordinator, suite.chainB, suite.chainC)
 }
 
 type testChain struct {
@@ -48,7 +62,7 @@ type testChain struct {
 	accountCodeID uint64
 }
 
-func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
+func setupChain(t *testing.T, chain *wasmibctesting.TestChain, coins ...sdk.Coin) *testChain {
 	// store contract codes
 	//
 	// NOTE: wasmd 0.30 uses the gas limit of 3,000,000 for simulation txs.
@@ -56,13 +70,13 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	// increase it. for tests to work.
 	// this will no longer be a problem with wasmd 0.31, which uses
 	// simtestutil.DefaultGenTxGas which is 10M.
-	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core.wasm")
+	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core-aarch64.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
-	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account.wasm")
+	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account-aarch64.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
-	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender.wasm")
+	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender-aarch64.wasm")
 	require.Equal(t, uint64(3), senderStoreRes.CodeID)
-	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter.wasm")
+	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter-aarch64.wasm")
 	require.Equal(t, uint64(4), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
@@ -83,6 +97,12 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 	// instantiate mock-counter contract
 	counter := chain.InstantiateContract(counterStoreRes.CodeID, []byte("{}"))
 
+	// mint coins to the sender contract
+	mintCoinsToAccount(chain, sender, coins...)
+
+	// important: set denom creation fee to zero (default is 10000000stake)
+	chain.App.TokenFactoryKeeper.SetParams(chain.GetContext(), tokenfactorytypes.NewParams(sdk.NewCoins()))
+
 	return &testChain{
 		TestChain:     chain,
 		coreAddr:      core,
@@ -90,6 +110,19 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain) *testChain {
 		counterAddr:   counter,
 		accountCodeID: accountStoreRes.CodeID,
 	}
+}
+
+func mintCoinsToAccount(chain *wasmibctesting.TestChain, recipient sdk.AccAddress, coins ...sdk.Coin) {
+	// the bank keeper only supports minting coins to module accounts
+	//
+	// in order to mint coins to a base account, we need to mint to a random
+	// module account first, then transfer that to the base account
+	//
+	// this module account must have authtypes.Minter permission in app.go
+	randomModuleName := "mint"
+
+	chain.App.BankKeeper.MintCoins(chain.GetContext(), randomModuleName, coins)
+	chain.App.BankKeeper.SendCoinsFromModuleToAccount(chain.GetContext(), randomModuleName, recipient, coins)
 }
 
 func setupConnection(coordinator *wasmibctesting.Coordinator, chainA, chainB *testChain) *wasmibctesting.Path {
