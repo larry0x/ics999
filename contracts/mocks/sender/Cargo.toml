@@ -24,5 +24,4 @@ cosmwasm-std    = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
 one-core        = { path = "../../core", features = ["library"] }
-one-types       = { workspace = true }
 thiserror       = { workspace = true }

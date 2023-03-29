@@ -27,7 +27,6 @@ cw2             = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-utils        = { workspace = true }
-one-types       = { workspace = true }
 ripemd          = { workspace = true }
 sha2            = { workspace = true }
 thiserror       = { workspace = true }

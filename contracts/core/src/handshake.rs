@@ -3,7 +3,7 @@ use cosmwasm_std::{
     Storage,
 };
 
-use crate::{error::ContractError, state::ACTIVE_CHANNELS};
+use crate::{error::ContractError, state::ACTIVE_CHANNELS, types};
 
 pub fn open_init(
     deps: DepsMut,
@@ -54,25 +54,25 @@ fn validate_order_and_version(
     version: &str,
     counterparty_version: Option<&str>,
 ) -> Result<(), ContractError> {
-    if *order != one_types::ORDER {
+    if *order != types::ORDER {
         return Err(ContractError::IncorrectOrder {
             actual: order.clone(),
-            expected: one_types::ORDER,
+            expected: types::ORDER,
         });
     }
 
-    if version != one_types::VERSION {
+    if version != types::VERSION {
         return Err(ContractError::IncorrectVersion {
             actual: version.into(),
-            expected: one_types::VERSION.into(),
+            expected: types::VERSION.into(),
         });
     }
 
     if let Some(cp_version) = counterparty_version {
-        if cp_version != one_types::VERSION {
+        if cp_version != types::VERSION {
             return Err(ContractError::IncorrectVersion {
                 actual: cp_version.into(),
-                expected: one_types::VERSION.into(),
+                expected: types::VERSION.into(),
             });
         }
     }

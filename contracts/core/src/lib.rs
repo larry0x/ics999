@@ -8,6 +8,7 @@ pub mod msg;
 pub mod query;
 pub mod state;
 pub mod transfer;
+pub mod types;
 pub mod utils;
 
 pub const CONTRACT_NAME: &str = "crates.io:one-core";

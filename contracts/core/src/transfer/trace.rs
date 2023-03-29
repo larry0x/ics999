@@ -1,7 +1,8 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{HexBinary, IbcEndpoint};
-use one_types::Trace;
 use ripemd::{Digest, Ripemd160};
+
+use crate::types::Trace;
 
 /// Similar to one_types::Trace ("full trace"), but without the `denom` field
 /// (which will be used as the key in contract storage). Also implements some

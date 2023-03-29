@@ -5,13 +5,13 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
-use one_types::{Action, ActionResult, Trace};
 use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
     transfer::{assert_free_denom_creation, denom_exists, TraceItem},
+    types::{Action, ActionResult, Trace},
     utils::default_salt,
     AFTER_ACTION,
 };

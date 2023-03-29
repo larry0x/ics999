@@ -3,13 +3,13 @@ use cosmwasm_std::{
     IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg,
     WasmMsg,
 };
-use one_types::{Action, PacketAck, PacketData, SenderExecuteMsg};
 use token_factory::TokenFactoryMsg;
 
 use crate::{
     error::ContractError,
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
     transfer::{burn, escrow, mint, release, TraceItem},
+    types::{Action, PacketAck, PacketData, SenderExecuteMsg},
     utils::{query_port, Coins},
     AFTER_CALLBACK,
 };
