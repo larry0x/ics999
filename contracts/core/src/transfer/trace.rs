@@ -44,7 +44,7 @@ impl TraceItem {
     /// voucher token.
     ///
     /// We use RIPEMD-160 instead of SHA-256 because with the latter, the token
-    /// factory denom will longer than cosmos-sdk's max allowed denom length.
+    /// factory denom will be longer than cosmos-sdk's max allowed denom length.
     /// - max length: 128 characters
     /// - with SHA-256: 137 chars
     /// - with RIPEMD-160: 113 chars
@@ -58,15 +58,28 @@ impl TraceItem {
         hasher.finalize().to_vec().into()
     }
 
-    /// Return whether the current chain ("localhost") is the source chain.
+    /// The reverse of receiver_chain_is_source.
     ///
-    /// If localhost is the last step in the path, then it's a sink. If it's not
-    /// a sink, its a source.
-    pub fn is_source(&self, localhost: &IbcEndpoint) -> bool {
+    /// We make this function public instead because it's easier to wrap head
+    /// around (ibc-go does the same).
+    ///
+    /// NOTE: Regardless of where is function is run -- the sender chain or the
+    /// receiver chain -- it always takes the sender chain IBC endpoint (`src`)!
+    pub fn sender_is_source(&self, src: &IbcEndpoint) -> bool {
+        !self.receiver_is_source(src)
+    }
+
+    /// Given the sender endpoint of a packet, return:
+    /// - true, if the denom originally came from the receiving chain, or
+    /// - false, if otherwise.
+    ///
+    /// The receiver is the source, if the path is not empty, and the channel
+    /// connecting the receiving chain is the very last step in the path.
+    fn receiver_is_source(&self, src: &IbcEndpoint) -> bool {
         let Some(last_step) = self.path.last() else {
             return false;
         };
 
-        localhost == last_step
+        src == last_step
     }
 }

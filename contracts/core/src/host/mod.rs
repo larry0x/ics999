@@ -6,9 +6,9 @@ use cosmwasm_std::{
 };
 use cw_utils::parse_execute_response_data;
 use one_types::{Action, PacketAck, PacketData, Trace};
-use token_factory::TokenFactoryMsg;
+use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
-use crate::{error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS};
+use crate::{error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ACTIONS};
 
 use self::handler::Handler;
 
@@ -34,40 +34,42 @@ pub fn packet_receive(
             WasmMsg::Execute {
                 contract_addr: env.contract.address.into(),
                 msg: to_binary(&ExecuteMsg::Handle {
-                    connection_id,
+                    src: packet.src,
+                    dest: packet.dest,
                     controller: pd.sender,
                     actions: pd.actions,
                     traces: pd.traces,
                 })?,
                 funds: vec![],
             },
-            AFTER_ALL_ACTIONS,
+            AFTER_ACTIONS,
         )))
 }
 
 pub fn handle(
-    deps: DepsMut,
+    deps: DepsMut<TokenFactoryQuery>,
     env: Env,
-    connection_id: String,
+    src: IbcEndpoint,
+    dest: IbcEndpoint,
     controller: String,
     actions: Vec<Action>,
     traces: Vec<Trace>,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
-    let handler = Handler::create(deps.storage, connection_id, controller, actions, traces)?;
+    let handler = Handler::create(deps.storage, src, dest, controller, actions, traces)?;
     handler.handle_next_action(deps, env)
 }
 
-pub fn after_action(
-    deps: DepsMut,
+pub fn after_execute(
+    deps: DepsMut<TokenFactoryQuery>,
     env: Env,
     res: SubMsgResult,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let mut handler = Handler::load(deps.storage)?;
-    handler.handle_result(res.unwrap().data)?; // reply on success so unwrap can't fail
+    handler.after_execute(res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env)
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>, ContractError> {
+pub fn after_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>, ContractError> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {
@@ -88,7 +90,7 @@ pub fn after_all_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>,
     };
 
     Ok(Response::new()
-        .add_attribute("method", "after_all_actions")
+        .add_attribute("method", "after_actions")
         .add_attribute("success", res.is_ok().to_string())
         // wasmd will interpret this data field as the ack, overriding the ack
         // emitted in the ibc_packet_receive entry point

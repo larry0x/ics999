@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Coin, IbcEndpoint, IbcOrder, WasmMsg, WasmQuery};
+use cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, WasmMsg, WasmQuery, Uint128};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -68,11 +68,9 @@ pub enum PacketAck {
 pub enum Action {
     /// Send one or more tokens to a recipient
     Transfer {
-        /// The amount of coin to transfer.
-        amount: Coin,
-
-        /// If not provided, default to the interchain account controlled by the
-        /// sender.
+        denom: String,
+        amount: Uint128,
+        /// If not provided, default to the ICA controlled by the sender
         recipient: Option<String>,
     },
 
@@ -102,9 +100,12 @@ pub enum Action {
 pub enum ActionResult {
     /// Result of a successfully executed `transfer` action.
     Transfer {
-        /// The amount that was transferred (the denoms substituted with the IBC
-        /// denoms on the receiver chain)
-        amount: Vec<Coin>,
+        /// IBC denom of the coin that was transferred
+        denom: String,
+
+        /// Whether a new token was created using the tokenfactory module as the
+        /// result of this transfer
+        new_token: bool,
 
         /// The recipient address (in case the sender did not provide an address,
         /// they can get it here)

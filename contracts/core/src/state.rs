@@ -7,7 +7,7 @@ pub const ACCOUNT_CODE_ID: Item<u64> = Item::new("acc_cid");
 
 pub const DEFAULT_TIMEOUT_SECS: Item<u64> = Item::new("def_to_secs");
 
-// (connection_id, controller_addr) => account_addr
+// (channel_id, controller_addr) => account_addr
 pub const ACCOUNTS: Map<(&str, &str), Addr> = Map::new("acct");
 
 // denom => denom_trace

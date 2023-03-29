@@ -69,15 +69,15 @@ pub enum ContractError {
         channel_id: String,
     },
 
-    #[error("an interchain account already exists for connection `{connection_id}` and controller `{controller}`")]
+    #[error("an interchain account already exists for channel `{channel_id}` and controller `{controller}`")]
     AccountExists {
-        connection_id: String,
+        channel_id: String,
         controller: String,
     },
 
-    #[error("no interchain account found at connection `{connection_id}` and controller `{controller}`")]
+    #[error("no interchain account found at channel `{channel_id}` and controller `{controller}`")]
     AccountNotFound {
-        connection_id: String,
+        channel_id: String,
         controller: String,
     },
 }

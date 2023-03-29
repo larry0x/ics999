@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, HexBinary, IbcTimeout};
+use cosmwasm_std::{Binary, HexBinary, IbcEndpoint, IbcTimeout};
 use one_types::{Action, Trace};
 
 use crate::transfer::TraceItem;
@@ -46,7 +46,8 @@ pub enum ExecuteMsg {
     /// and no state changes from any action (even those that succeeded) will be
     /// committed.
     Handle {
-        connection_id: String,
+        src: IbcEndpoint,
+        dest: IbcEndpoint,
         controller: String,
         actions: Vec<Action>,
         traces: Vec<Trace>,

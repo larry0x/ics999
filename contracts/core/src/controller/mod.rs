@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    from_slice, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
-    IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
+    from_slice, to_binary, Binary, Coin, CustomQuery, Deps, DepsMut, Env, IbcBasicResponse,
+    IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg,
+    WasmMsg,
 };
 use one_types::{Action, PacketAck, PacketData, SenderExecuteMsg};
 use token_factory::TokenFactoryMsg;
@@ -13,8 +14,8 @@ use crate::{
     AFTER_CALLBACK,
 };
 
-pub fn act(
-    deps: DepsMut,
+pub fn act<Q: CustomQuery>(
+    deps: DepsMut<Q>,
     env: Env,
     info: MessageInfo,
     connection_id: String,
@@ -34,19 +35,22 @@ pub fn act(
     // whether the current chain is the source or the sink.
     // also, compose the traces which will be included in the packet.
     for action in &actions {
-        if let Action::Transfer { amount, .. } = action {
-            let trace = trace_of(deps.storage, &amount.denom, &localhost)?;
+        if let Action::Transfer { denom, amount, .. } = action {
+            let trace = trace_of(deps.storage, &denom)?;
 
-            if trace.is_source(&localhost) {
-                // current chain is the source -- escrow
-                escrow(amount, &mut attrs);
+            let coin = Coin {
+                denom: denom.clone(),
+                amount: *amount,
+            };
+
+            if trace.sender_is_source(&localhost) {
+                escrow(&coin, &mut attrs);
             } else {
-                // current chain is the sink -- burn voucher token
-                burn(amount.clone(), &info.sender, &mut msgs, &mut attrs);
+                burn(coin.clone(), &info.sender, &mut msgs, &mut attrs);
             }
 
-            traces.push(trace.into_full_trace(&amount.denom));
-            sending_funds.add(amount.clone())?;
+            traces.push(trace.into_full_trace(&denom));
+            sending_funds.add(coin)?;
         }
     }
 
@@ -78,9 +82,7 @@ pub fn act(
                 traces,
             })?,
             timeout,
-        })
-        .add_attribute("method", "act")
-        .add_attributes(attrs))
+    }))
 }
 
 pub fn packet_lifecycle_complete(
@@ -100,16 +102,21 @@ pub fn packet_lifecycle_complete(
     // process refund if the packet timed out or failed
     if should_refund(&ack) {
         for action in &packet_data.actions {
-            if let Action::Transfer { amount, .. } = action {
-                let trace = trace_of(deps.storage, &amount.denom, &packet.src)?;
+            if let Action::Transfer { denom, amount, .. } = action {
+                let trace = trace_of(deps.storage, &denom)?;
+
+                let coin = Coin {
+                    denom: denom.clone(),
+                    amount: *amount,
+                };
 
                 // do the reverse of what was done in `act`
                 // if the tokens were escrowed, then release them
                 // if the tokens were burned, then mint them
-                if trace.is_source(&packet.src) {
-                    release(amount.clone(), &packet_data.sender, &mut msgs, &mut attrs);
+                if trace.sender_is_source(&packet.src) {
+                    release(coin, &packet_data.sender, &mut msgs, &mut attrs);
                 } else {
-                    mint(amount.clone(), &packet_data.sender, &mut msgs, &mut attrs);
+                    mint(coin, &packet_data.sender, &mut msgs, &mut attrs);
                 }
             }
         }
@@ -150,13 +157,13 @@ pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, Contra
 /// If there isn't a trace stored for this denom, then the current chain must be
 /// the source. In this case, initialize a new trace with the current chain
 /// being the first and only step in the path.
-fn trace_of(store: &dyn Storage, denom: &str, localhost: &IbcEndpoint) -> StdResult<TraceItem> {
+fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
     Ok(DENOM_TRACES
         .may_load(store, &denom)?
         .unwrap_or_else(|| TraceItem::new(&denom)))
 }
 
-fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
+fn localhost<Q: CustomQuery>(deps: Deps<Q>, connection_id: &str) -> StdResult<IbcEndpoint> {
     Ok(IbcEndpoint {
         port_id: query_port(&deps.querier)?,
         channel_id: ACTIVE_CHANNELS.load(deps.storage, connection_id)?,

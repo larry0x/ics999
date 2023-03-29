@@ -1,19 +1,19 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, instantiate2_address, to_binary, Addr, Attribute, Binary, ContractResult, DepsMut, Empty,
-    Env, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, BankMsg, IbcEndpoint,
+    instantiate2_address, to_binary, Addr, Binary, Coin, ContractResult, DepsMut, Empty, Env,
+    IbcEndpoint, QueryRequest, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
-use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
+use cw_utils::parse_execute_response_data;
 use one_types::{Action, ActionResult, Trace};
-use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
+use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     error::ContractError,
-    state::{ACCOUNTS, ACCOUNT_CODE_ID},
-    transfer::TraceItem,
-    utils::{connection_of_channel, default_salt},
-    AFTER_ACTION,
+    state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
+    transfer::{assert_free_denom_creation, create_denom, denom_exists, mint, release, TraceItem},
+    utils::default_salt,
+    AFTER_EXECUTE,
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");
@@ -26,8 +26,11 @@ const HANDLER: Item<Handler> = Item::new("handler");
 /// saved/loaded from the contract store.
 #[cw_serde]
 pub(super) struct Handler {
-    /// The connection the packet was sent from
-    pub connection_id: String,
+    /// The chain where the packet was sent from, i.e. the controller chain
+    pub src: IbcEndpoint,
+
+    /// The current chain, i.e. the host chain
+    pub dest: IbcEndpoint,
 
     /// The account who sent the packet on the sender chain
     pub controller: String,
@@ -38,14 +41,15 @@ pub(super) struct Handler {
     /// Traces of all tokens being transferred in the packet
     pub traces: Vec<Trace>,
 
+    /// Index of the current action being executed, starting from 0.
+    /// Used only for event logging.
+    pub action_index: u64,
+
     /// The action is to be executed at the current step.
     /// None means all actions have finished executing.
     pub action: Option<Action>,
 
     /// The actions that are to be executed later, in reverse order.
-    ///
-    /// At the beginning of each step, we pop the last element and put it in
-    /// `self.action`.
     pub pending_actions: Vec<Action>,
 
     /// The results from executing the earlier actions
@@ -53,39 +57,34 @@ pub(super) struct Handler {
     /// At the end of each step, the response data is parsed and pushed into
     /// this queue.
     ///
-    /// Once all actions have finished executing, this enture queue is included
+    /// Once all actions have finished executing, this enture queue is returned
     /// in the packet acknowledgement.
-    ///
-    /// NOTE: we don't include events in the acknowledgement, because events
-    /// are not part of the block result, i.e. not reached consensus by
-    /// validators. there is no guarantee that events are deterministic
-    /// (see one of the Juno chain halt exploits).
-    ///
-    /// in princle, contracts should only have access to data that have reached
-    /// consensus by validators.
     pub results: Vec<ActionResult>,
 }
 
 impl Handler {
     pub fn create(
         store: &dyn Storage,
-        connection_id: String,
+        src: IbcEndpoint,
+        dest: IbcEndpoint,
         controller: String,
         mut actions: Vec<Action>,
         traces: Vec<Trace>,
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
-        let host = ACCOUNTS.may_load(store, (&connection_id, &controller))?;
+        let host = ACCOUNTS.may_load(store, (&dest.channel_id, &controller))?;
 
         // reverse the actions, so that we can use pop() to grab the 1st action
         actions.reverse();
 
         Ok(Self {
-            connection_id,
+            src,
+            dest,
             controller,
             host,
             traces,
+            action_index: 0,
             action: None,
             pending_actions: actions,
             results: vec![],
@@ -107,10 +106,10 @@ impl Handler {
     /// Execute the next action in the queue. Saved the updated handler state.
     pub fn handle_next_action(
         mut self,
-        deps: DepsMut,
+        deps: DepsMut<TokenFactoryQuery>,
         env: Env,
     ) -> Result<Response<TokenFactoryMsg>, ContractError> {
-        // fetch the first action in the queue
+        // grab the first action in the queue
         self.action = self.pending_actions.pop();
 
         // if there is no more action to execute
@@ -119,23 +118,25 @@ impl Handler {
         let Some(action) = &self.action else {
             Handler::remove(deps.storage);
 
-            return Ok(Response::new()
-                .set_data(to_binary(&self.results)?)
-                .add_attributes(self.into_attributes()));
+            return Ok(self.default_handle_action_response().set_data(to_binary(&self.results)?));
         };
 
         // convert the action to the appropriate msgs and event attributes
-        let msgs = match action {
+        let res = match action.clone() {
             Action::Transfer {
+                denom: src_denom,
                 amount,
                 recipient,
             } => {
-                let mut trace: TraceItem = pd
+                let mut msgs = vec![];
+                let mut attrs = vec![];
+
+                let mut trace: TraceItem = self
                     .traces
                     .iter()
-                    .find(|trace| trace.denom == amount.denom)
+                    .find(|trace| trace.denom == src_denom)
                     .ok_or_else(|| ContractError::TraceNotFound {
-                        denom: amount.denom,
+                        denom: src_denom,
                     })?
                     .into();
 
@@ -143,34 +144,76 @@ impl Handler {
                     // if the sender doesn't specify the recipient, default to
                     // their interchain account
                     // error if the sender does not already own an ICA
-                    None => self.host.ok_or_else(|| ContractError::AccountNotFound {
-                        connection_id: self.connection_id,
-                        controller: self.controller,
+                    None => self.host.clone().ok_or_else(|| ContractError::AccountNotFound {
+                        channel_id: self.dest.channel_id.clone(),
+                        controller: self.controller.clone(),
                     })?,
 
                     // if the sender does specify a recipient, simply validate
                     // the address
-                    Some(r) => deps.api.addr_validate(r)?,
+                    Some(r) => deps.api.addr_validate(&r)?,
                 };
 
-                if trace.is_source(&packet.dest) {
-                    // current chain is the source -- release tokens from escrow
-                    let msg = BankMsg::Send {
-                        to_address: recipient.into(),
-                        amount: amount.clone(),
+                if trace.sender_is_source(&self.src) {
+                    // append current chain to the path
+                    trace.path.push(self.dest.clone());
+
+                    // derive the ibc denom
+                    let subdenom = trace.hash().to_hex();
+                    let denom = construct_denom(&self.dest.port_id, &subdenom);
+
+                    // if the denom does not exist yet -- create the denom and
+                    // save the trace to store
+                    let new_token = !denom_exists(&deps.querier, &denom);
+
+                    if new_token {
+                        DENOM_TRACES.save(deps.storage, &denom, &trace)?;
+
+                        // we can only create the denom if denom creation fee
+                        // is zero
+                        assert_free_denom_creation(&deps.querier)?;
+
+                        create_denom(subdenom, &mut msgs, &mut attrs);
+                    }
+
+                    self.results.push(ActionResult::Transfer {
+                        denom: denom.clone(),
+                        new_token,
+                        recipient: recipient.to_string(),
+                    });
+
+                    let coin = Coin {
+                        denom,
+                        amount,
                     };
 
-                    vec![msg]
+                    mint(coin, &recipient, &mut msgs, &mut attrs);
                 } else {
-                    // current chain is the sink -- mint voucher tokens
-                    let mut msgs = vec![];
+                    // pop the sender chain from the path
+                    trace.path.pop();
 
-                    // append current chain to the path and derive the ibc denom
-                    trace.path.push(packet.dest.channel_id.clone());
+                    // derive the ibc denom
+                    let subdenom = trace.hash().to_hex();
+                    let denom = construct_denom(&self.dest.port_id, &subdenom);
 
-                    // if the trace is not already recorded onchain
-                    todo!();
+                    self.results.push(ActionResult::Transfer {
+                        denom: denom.clone(),
+                        new_token: false,
+                        recipient: recipient.to_string(),
+                    });
+
+                    let coin = Coin {
+                        denom,
+                        amount,
+                    };
+
+                    release(coin, &recipient, &mut msgs, &mut attrs)
                 }
+
+                self.default_handle_action_response()
+                    .add_attribute("action", "transfer")
+                    .add_attributes(attrs)
+                    .add_messages(msgs)
             },
 
             Action::RegisterAccount {
@@ -179,16 +222,16 @@ impl Handler {
                 // only one ICA per controller allowed
                 if self.host.is_some() {
                     return Err(ContractError::AccountExists {
-                        connection_id: self.connection_id,
+                        channel_id: self.dest.channel_id,
                         controller: self.controller,
                     })?;
                 }
 
                 // if a salt is not provided, by default use:
-                // sha256(connection_id_bytes | controller_addr_bytes)
+                // sha256(channel_id_bytes | controller_addr_bytes)
                 let salt = salt
                     .clone()
-                    .unwrap_or_else(|| default_salt(&self.connection_id, &self.controller));
+                    .unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
 
                 // load the one-account contract's code ID and checksum, which is
                 // used in Instantiate2 to determine the contract address
@@ -203,37 +246,44 @@ impl Handler {
                 )?;
                 let addr = deps.api.addr_humanize(&addr_raw)?;
 
-                ACCOUNTS.save(deps.storage, (&self.connection_id, &self.controller), &addr)?;
+                ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
+
+                self.results.push(ActionResult::RegisterAccount {
+                    address: addr.to_string(),
+                });
 
                 self.host = Some(addr);
 
-                let msg = WasmMsg::Instantiate2 {
-                    admin: Some(env.contract.address.into()),
-                    code_id,
-                    label: format!("one-account/{}/{}", self.connection_id, self.controller),
-                    msg: to_binary(&Empty {})?,
-                    funds: vec![],
-                    salt,
-                };
-
-                vec![msg]
+                self.default_handle_action_response()
+                    .add_attribute("action", "register_account")
+                    .add_message(WasmMsg::Instantiate2 {
+                        admin: Some(env.contract.address.into()),
+                        code_id,
+                        label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
+                        msg: to_binary(&Empty {})?,
+                        funds: vec![],
+                        salt,
+                    })
             },
 
             Action::Execute(wasm_msg) => {
                 let Some(addr) = &self.host else {
                     return Err(ContractError::AccountNotFound {
-                        connection_id: self.connection_id,
+                        channel_id: self.dest.channel_id,
                         controller: self.controller,
                     });
                 };
 
-                let msg = WasmMsg::Execute {
-                    contract_addr: addr.into(),
-                    msg: to_binary(wasm_msg)?,
-                    funds: vec![],
-                };
-
-                vec![msg]
+                self.default_handle_action_response()
+                    .add_attribute("action", "execute")
+                    .add_submessage(SubMsg::reply_on_success(
+                        WasmMsg::Execute {
+                            contract_addr: addr.into(),
+                            msg: to_binary(&wasm_msg)?,
+                            funds: vec![],
+                        },
+                        AFTER_EXECUTE,
+                    ))
             },
 
             Action::Query(wasm_query) => {
@@ -248,69 +298,31 @@ impl Handler {
                     response,
                 });
 
-                vec![]
+                self.default_handle_action_response()
+                    .add_attribute("action", "query")
             },
         };
 
         self.save(deps.storage)?;
 
-        Ok(Response::new()
-            .add_attribute("method", "handle_next_action")
-            .add_attribute("actions_left", self.pending_actions.len().to_string())
-            // note that we use reply_on_success here, meaning any one action
-            // fail wil lead to the entire execute::handle method call to fail.
-            // this this atomicity - a desired property
-            .add_submessage(SubMsg::reply_on_success(msg, AFTER_ACTION)))
+        Ok(res)
     }
 
-    /// After an action has been executed, parse the response
-    pub fn handle_result(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
-        // the action that was executed
-        let action = self.action.as_ref().expect("missing active action");
+    fn default_handle_action_response<T>(&self) -> Response<T> {
+        Response::new()
+            .add_attribute("method", "handle_next_action")
+            .add_attribute("action_index", self.action_index.to_string())
+    }
 
-        // we deserialize the data based on which type of action that was handled
-        match action {
-            Action::Transfer {
-                amount: _,
-                recipient: _,
-            } => {
-                todo!("fungible token transfer is not implemented yet");
-            },
+    /// After an `Execute` action has been completed, parse the response
+    pub fn after_execute(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
+        let data = data.expect("missing wasm execute response data");
+        let execute_res = parse_execute_response_data(&data)?;
 
-            Action::RegisterAccount {
-                ..
-            } => {
-                let data = data.expect("missing instantaite response data");
-                // technically this should be Instantiate2 response, but it's
-                // the same as the normal instantite response so this should work
-                let instantiate_res = parse_instantiate_response_data(&data)?;
-
-                self.results.push(ActionResult::RegisterAccount {
-                    address: instantiate_res.contract_address,
-                });
-            },
-
-            Action::Execute(_) => {
-                let data = data.expect("missing wasm execute response data");
-                let execute_res = parse_execute_response_data(&data)?;
-
-                self.results.push(ActionResult::Execute {
-                    data: execute_res.data,
-                });
-            },
-
-            _ => unreachable!("query actions should not have reply"),
-        }
+        self.results.push(ActionResult::Execute {
+            data: execute_res.data,
+        });
 
         Ok(())
-    }
-
-    fn into_attributes(self) -> Vec<Attribute> {
-        vec![
-            attr("connection_id", self.connection_id),
-            attr("controller", self.controller),
-            attr("host", self.host.map_or_else(|| "null".to_string(), |addr| addr.to_string())),
-            attr("actions_left", self.pending_actions.len().to_string()),
-        ]
     }
 }

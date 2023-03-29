@@ -1,32 +1,22 @@
-use cosmwasm_std::{
-    attr, coin, Addr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper, Response, Uint128,
-};
-use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
+use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper};
+use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::error::ContractError;
 
-// pub fn create_and_mint(
-//     querier: &QuerierWrapper<TokenFactoryQuery>,
-//     creator: &Addr,
-//     subdenom: String,
-//     amount: Uint128,
-//     to: &Addr,
-//     res: Response<TokenFactoryMsg>,
-// ) -> Result<Response<TokenFactoryMsg>, ContractError> {
-//     // we can only create the denom if denom create fee is zero
-//     let tf_params = token_factory::query_params(querier)?;
-//     if !tf_params.params.denom_creation_fee.is_empty() {
-//         return Err(ContractError::NonZeroTokenCreationFee);
-//     }
-
-//     mint(
-//         coin(amount.u128(), construct_denom(creator.as_str(), &subdenom)),
-//         to,
-//         res.add_message(TokenFactoryMsg::CreateDenom {
-//             subdenom,
-//         }),
-//     )
-// }
+pub fn create_denom(
+    subdenom: String,
+    msgs: &mut Vec<CosmosMsg<TokenFactoryMsg>>,
+    attrs: &mut Vec<Attribute>,
+) {
+    attrs.push(attr("msg", "create_denom"));
+    attrs.push(attr("subdenom", &subdenom));
+    msgs.push(
+        TokenFactoryMsg::CreateDenom {
+            subdenom,
+        }
+        .into(),
+    );
+}
 
 pub fn mint(
     coin: Coin,
@@ -93,7 +83,7 @@ pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
 ///
 /// This approach ignores other possible errors such as serde errors, but I
 /// can't think of a better method.
-fn denom_exists(querier: &QuerierWrapper<TokenFactoryQuery>, denom: &str) -> bool {
+pub fn denom_exists(querier: &QuerierWrapper<TokenFactoryQuery>, denom: &str) -> bool {
     token_factory::query_metadata(querier, denom).is_ok()
 }
 
@@ -101,7 +91,7 @@ fn denom_exists(querier: &QuerierWrapper<TokenFactoryQuery>, denom: &str) -> boo
 ///
 /// We don't have the money to pay the fee. If the fee is non-zero then we
 /// simply refuse to complete the transfer.
-fn assert_free_denom_creation(
+pub fn assert_free_denom_creation(
     querier: &QuerierWrapper<TokenFactoryQuery>,
 ) -> Result<(), ContractError> {
     let params = token_factory::query_params(querier)?;
