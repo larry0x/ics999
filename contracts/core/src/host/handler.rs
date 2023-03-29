@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, CosmosMsg,
-    DepsMut, Empty, Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, DepsMut, Empty,
+    Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
