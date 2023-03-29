@@ -333,7 +333,7 @@ impl Handler {
         Ok(())
     }
 
-    pub fn default_handle_action_response<T>(&self) -> Response<T> {
+    fn default_handle_action_response<T>(&self) -> Response<T> {
         Response::new()
             .add_attribute("method", "handle_next_action")
             .add_attribute("action_index", self.action_index.to_string())
