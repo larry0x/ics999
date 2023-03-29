@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, Binary, Coin, ContractResult, DepsMut, Empty, Env,
-    IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, CosmosMsg,
+    DepsMut, Empty, Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
@@ -11,9 +11,9 @@ use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
-    transfer::{assert_free_denom_creation, create_denom, denom_exists, mint, release, TraceItem},
+    transfer::{assert_free_denom_creation, denom_exists, TraceItem},
     utils::default_salt,
-    AFTER_EXECUTE,
+    AFTER_ACTION,
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");
@@ -108,7 +108,10 @@ impl Handler {
         mut self,
         deps: DepsMut<TokenFactoryQuery>,
         env: Env,
+        response: Option<Response<TokenFactoryMsg>>,
     ) -> Result<Response<TokenFactoryMsg>, ContractError> {
+        let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
+
         // grab the first action in the queue
         self.action = self.pending_actions.pop();
 
@@ -118,18 +121,17 @@ impl Handler {
         let Some(action) = &self.action else {
             Handler::remove(deps.storage);
 
-            return Ok(self.default_handle_action_response().set_data(to_binary(&self.results)?));
+            return Ok(response.set_data(to_binary(&self.results)?));
         };
 
         // convert the action to the appropriate msgs and event attributes
-        let res = match action.clone() {
+        let response = match action.clone() {
             Action::Transfer {
                 denom: src_denom,
                 amount,
                 recipient,
             } => {
-                let mut msgs = vec![];
-                let mut attrs = vec![];
+                response = response.add_attribute("action", "transfer");
 
                 let mut trace: TraceItem = self
                     .traces
@@ -154,18 +156,17 @@ impl Handler {
                     Some(r) => deps.api.addr_validate(&r)?,
                 };
 
-                if trace.sender_is_source(&self.src) {
+                let msg: CosmosMsg<_> = if trace.sender_is_source(&self.src) {
                     // append current chain to the path
                     trace.path.push(self.dest.clone());
 
                     // derive the ibc denom
                     let subdenom = trace.hash().to_hex();
                     let denom = construct_denom(&self.dest.port_id, &subdenom);
+                    let new_token = !denom_exists(&deps.querier, &denom);
 
                     // if the denom does not exist yet -- create the denom and
                     // save the trace to store
-                    let new_token = !denom_exists(&deps.querier, &denom);
-
                     if new_token {
                         DENOM_TRACES.save(deps.storage, &denom, &trace)?;
 
@@ -173,7 +174,9 @@ impl Handler {
                         // is zero
                         assert_free_denom_creation(&deps.querier)?;
 
-                        create_denom(subdenom, &mut msgs, &mut attrs);
+                        response = response.add_message(TokenFactoryMsg::CreateDenom {
+                            subdenom,
+                        });
                     }
 
                     self.results.push(ActionResult::Transfer {
@@ -182,12 +185,12 @@ impl Handler {
                         recipient: recipient.to_string(),
                     });
 
-                    let coin = Coin {
+                    TokenFactoryMsg::MintTokens {
                         denom,
                         amount,
-                    };
-
-                    mint(coin, &recipient, &mut msgs, &mut attrs);
+                        mint_to_address: recipient.into(),
+                    }
+                    .into()
                 } else {
                     // pop the sender chain from the path
                     trace.path.pop();
@@ -207,13 +210,14 @@ impl Handler {
                         amount,
                     };
 
-                    release(coin, &recipient, &mut msgs, &mut attrs)
-                }
+                    BankMsg::Send {
+                        to_address: recipient.into(),
+                        amount: vec![coin],
+                    }
+                    .into()
+                };
 
-                self.default_handle_action_response()
-                    .add_attribute("action", "transfer")
-                    .add_attributes(attrs)
-                    .add_messages(msgs)
+                response.add_submessage(SubMsg::reply_on_success(msg, AFTER_ACTION))
             },
 
             Action::RegisterAccount {
@@ -252,16 +256,19 @@ impl Handler {
 
                 self.host = Some(addr);
 
-                self.default_handle_action_response()
+                response
                     .add_attribute("action", "register_account")
-                    .add_message(WasmMsg::Instantiate2 {
-                        admin: Some(env.contract.address.into()),
-                        code_id,
-                        label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
-                        msg: to_binary(&Empty {})?,
-                        funds: vec![],
-                        salt,
-                    })
+                    .add_submessage(SubMsg::reply_on_success(
+                        WasmMsg::Instantiate2 {
+                            admin: Some(env.contract.address.into()),
+                            code_id,
+                            label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
+                            msg: to_binary(&Empty {})?,
+                            funds: vec![],
+                            salt,
+                        },
+                        AFTER_ACTION,
+                    ))
             },
 
             Action::Execute(cosmos_msg) => {
@@ -272,7 +279,7 @@ impl Handler {
                     });
                 };
 
-                self.default_handle_action_response()
+                response
                     .add_attribute("action", "execute")
                     .add_submessage(SubMsg::reply_on_success(
                         WasmMsg::Execute {
@@ -280,46 +287,53 @@ impl Handler {
                             msg: to_binary(&cosmos_msg)?,
                             funds: vec![],
                         },
-                        AFTER_EXECUTE,
+                        AFTER_ACTION,
                     ))
             },
 
             Action::Query(query_req) => {
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
-                let SystemResult::Ok(ContractResult::Ok(response)) = query_res else {
+                let SystemResult::Ok(ContractResult::Ok(query_res_bin)) = query_res else {
                     return Err(ContractError::QueryFailed);
                 };
 
                 self.results.push(ActionResult::Query {
-                    response,
+                    response: query_res_bin,
                 });
 
-                self.default_handle_action_response()
-                    .add_attribute("action", "query")
+                response = response.add_attribute("action", "query");
+
+                return self.handle_next_action(deps, env, Some(response));
             },
         };
 
         self.save(deps.storage)?;
 
-        Ok(res)
-    }
-
-    fn default_handle_action_response<T>(&self) -> Response<T> {
-        Response::new()
-            .add_attribute("method", "handle_next_action")
-            .add_attribute("action_index", self.action_index.to_string())
+        Ok(response)
     }
 
     /// After an `Execute` action has been completed, parse the response
-    pub fn after_execute(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
-        let data = data.expect("missing wasm execute response data");
-        let execute_res = parse_execute_response_data(&data)?;
+    pub fn after_action(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
+        // the action that was executed
+        let action = self.action.as_ref().expect("missing active action");
 
-        self.results.push(ActionResult::Execute {
-            data: execute_res.data,
-        });
+        // we only need to parse the result if the action is an msg execution
+        if let Action::Execute(_) = action {
+            let data = data.expect("missing wasm execute response data");
+            let execute_res = parse_execute_response_data(&data)?;
+
+            self.results.push(ActionResult::Execute {
+                data: execute_res.data,
+            });
+        }
 
         Ok(())
+    }
+
+    pub fn default_handle_action_response<T>(&self) -> Response<T> {
+        Response::new()
+            .add_attribute("method", "handle_next_action")
+            .add_attribute("action_index", self.action_index.to_string())
     }
 }

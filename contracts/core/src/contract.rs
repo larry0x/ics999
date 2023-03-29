@@ -13,7 +13,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query,
     state::{ACCOUNT_CODE_ID, DEFAULT_TIMEOUT_SECS},
-    AFTER_ACTIONS, AFTER_EXECUTE, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
+    AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]
@@ -73,8 +73,8 @@ pub fn reply(
     msg: Reply,
 ) -> Result<Response<TokenFactoryMsg>, ContractError> {
     match msg.id {
-        AFTER_EXECUTE => host::after_execute(deps, env, msg.result),
-        AFTER_ACTIONS => host::after_actions(msg.result),
+        AFTER_ACTION => host::after_action(deps, env, msg.result),
+        AFTER_ALL_ACTIONS => host::after_all_actions(msg.result),
         AFTER_CALLBACK => controller::after_callback(msg.result.is_ok()),
         id => unreachable!("unknown reply ID: `{id}`"),
     }
