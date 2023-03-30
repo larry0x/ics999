@@ -20,43 +20,39 @@ import (
 
 var mockRecipient, _ = sdk.AccAddressFromBech32("cosmos1z926ax906k0ycsuckele6x5hh66e2m4mjchwmp")
 
-// TestTransfer in this test, we make a single transfer from chainA to chainB
-// with the recipient specified.
+// TestTransfer tests sending multiple coins to multiple recipients in a single
+// packet. We want to make sure the denom is only created once.
 func (suite *testSuite) TestTransfer() {
+	// the first two transfers we specify a recipient
+	// the other two we don't specify a recipient; should default to the ICA
 	_, ack, err := act(suite, []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:     "uastro",
-				Amount:    sdk.NewInt(69_000_000),
+				Amount:    sdk.NewInt(888_888),
 				Recipient: mockRecipient.String(),
 			},
 		},
-	})
-	require.NoError(suite.T(), err)
-	requirePacketSuccess(suite.T(), ack)
-
-	// predict what the denom would be
-	denom := deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "uastro")
-
-	// sender balance on chainA should have been reduced
-	// recipient balance on chainB should have been increased
-	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, "uastro", 100_000_000-69_000_000)
-	requireBalanceEqual(suite.T(), suite.chainB, mockRecipient, denom, 69_000_000)
-}
-
-// TestTransferNoRecipient in this test, we make a single transfer from chainA
-// to chainB but without specifying the recipient. The tokens will be sent to
-// the sender's interchain account by default. If the sender does not already
-// own an ICA, the packet fails.
-func (suite *testSuite) TestTransferNoRecipient() {
-	_, ack, err := act(suite, []types.Action{
+		{
+			Transfer: &types.TransferAction{
+				Denom:     "umars",
+				Amount:    sdk.NewInt(69_420),
+				Recipient: mockRecipient.String(),
+			},
+		},
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
 			Transfer: &types.TransferAction{
+				Denom:  "uastro",
+				Amount: sdk.NewInt(987_654),
+			},
+		},
+		{
+			Transfer: &types.TransferAction{
 				Denom:  "umars",
-				Amount: sdk.NewInt(123_456),
+				Amount: sdk.NewInt(1_111_111),
 			},
 		},
 	})
@@ -64,23 +60,21 @@ func (suite *testSuite) TestTransferNoRecipient() {
 	requirePacketSuccess(suite.T(), ack)
 
 	// predict what the denom would be
-	denom := deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "umars")
+	astroVoucherDenom := deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "uastro")
+	marsVoucherDenom := deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "umars")
 
 	// recipient unspecified, default to the ICA
-	ica, err := sdk.AccAddressFromBech32(ack.Results[0].RegisterAccount.Address)
+	icaAddr, err := sdk.AccAddressFromBech32(ack.Results[2].RegisterAccount.Address)
 	require.NoError(suite.T(), err)
 
 	// sender balance on chainA should have been reduced
 	// recipient balance on chainB should have been increased
-	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, "umars", 100_000_000-123_456)
-	requireBalanceEqual(suite.T(), suite.chainB, ica, denom, 123_456)
-}
-
-// TestMultipleCoinsOnePacket tests sending multiple coins to multiple
-// recipients in a single packet. We want to make sure the denom is only created
-// once.
-func (suite *testSuite) TestMultipleTransfersPacket() {
-	// todo
+	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, "uastro", 100_000_000-888_888-987_654)
+	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, "umars", 100_000_000-69_420-1_111_111)
+	requireBalanceEqual(suite.T(), suite.chainB, mockRecipient, astroVoucherDenom, 888_888)
+	requireBalanceEqual(suite.T(), suite.chainB, mockRecipient, marsVoucherDenom, 69_420)
+	requireBalanceEqual(suite.T(), suite.chainB, icaAddr, astroVoucherDenom, 987_654)
+	requireBalanceEqual(suite.T(), suite.chainB, icaAddr, marsVoucherDenom, 1_111_111)
 }
 
 // TestPathUnwinding in this test, to do the following transfer:
