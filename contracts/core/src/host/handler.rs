@@ -10,9 +10,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
-    transfer::{
-        assert_free_denom_creation, construct_denom, denom_exists, into_proto_coin, TraceItem,
-    },
+    transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     types::{Action, ActionResult, Trace},
     utils::default_salt,
     AFTER_ACTION,
@@ -160,7 +158,8 @@ impl Handler {
                     // derive the ibc denom
                     let subdenom = trace.hash().to_hex();
                     let denom = construct_denom(env.contract.address.as_str(), &subdenom);
-                    let new_token = !denom_exists(&deps.querier, &denom);
+
+                    let new_token = !DENOM_TRACES.has(deps.storage, &denom);
 
                     // if the denom does not exist yet -- create the denom and
                     // save the trace to store

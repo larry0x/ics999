@@ -82,21 +82,6 @@ pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
     }
 }
 
-/// Check whether a tokenfactory denom exists.
-///
-/// We do this by attempting to query the denom's metadata. If it errors, we
-/// assume the token doesn't exist.
-///
-/// TODO: this approach ignores other possible errors, such as the "stargate
-/// query disabled". we should parse the error code instead. if the denom indeed
-/// does not exist, the error should be:
-///   `codespace: tokenfactory, code: 10`
-pub fn denom_exists(querier: &QuerierWrapper, denom: &str) -> bool {
-    tokenfactory::TokenfactoryQuerier::new(querier)
-        .denom_authority_metadata(denom.into())
-        .is_ok()
-}
-
 /// Assert that denom creation fee is zero.
 ///
 /// We don't have the money to pay the fee. If the fee is non-zero then we
