@@ -7,7 +7,7 @@ use crate::{
     error::ContractError,
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
     transfer::{burn, escrow, mint, release, TraceItem},
-    types::{Action, PacketAck, PacketData, SenderExecuteMsg},
+    types::{Action, PacketAck, PacketData, SenderExecuteMsg, Trace},
     utils::{query_port, Coins},
     AFTER_CALLBACK,
 };
@@ -24,7 +24,7 @@ pub fn act(
     let mut sending_funds = Coins::empty();
     let mut msgs = vec![];
     let mut attrs = vec![];
-    let mut traces = vec![];
+    let mut traces: Vec<Trace> = vec![];
 
     // find the current chain's port and channel IDs
     let localhost = localhost(deps.as_ref(), &connection_id)?;
@@ -47,7 +47,10 @@ pub fn act(
                 burn(&info.sender, coin.clone(), &mut msgs, &mut attrs);
             }
 
-            traces.push(trace.into_full_trace(denom));
+            if !traces.iter().any(|trace| trace.denom == *denom) {
+                traces.push(trace.into_full_trace(denom));
+            }
+
             sending_funds.add(coin)?;
         }
     }
