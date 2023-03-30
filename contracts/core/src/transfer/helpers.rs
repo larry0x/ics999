@@ -1,63 +1,56 @@
-use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper};
-use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
+use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper, StdResult};
+use osmosis_std::types::{
+    cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
+};
 
 use crate::error::ContractError;
 
-pub fn create_denom(
-    subdenom: String,
-    msgs: &mut Vec<CosmosMsg<TokenFactoryMsg>>,
-    attrs: &mut Vec<Attribute>,
-) {
-    attrs.push(attr("msg", "create_denom"));
-    attrs.push(attr("subdenom", &subdenom));
-    msgs.push(
-        TokenFactoryMsg::CreateDenom {
-            subdenom,
-        }
-        .into(),
-    );
-}
-
 pub fn mint(
-    coin: Coin,
+    sender: impl Into<String>,
     to: impl Into<String>,
-    msgs: &mut Vec<CosmosMsg<TokenFactoryMsg>>,
+    coin: Coin,
+    msgs: &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "mint"));
     msgs.push(
-        TokenFactoryMsg::MintTokens {
-            denom: coin.denom,
-            amount: coin.amount,
-            mint_to_address: to.into(),
+        tokenfactory::MsgMint {
+            sender: sender.into(),
+            amount: Some(into_proto_coin(coin.clone())),
+        }
+        .into(),
+    );
+    msgs.push(
+        BankMsg::Send {
+            to_address: to.into(),
+            amount: vec![coin],
         }
         .into(),
     );
 }
 
 pub fn burn(
+    sender: impl Into<String>,
     coin: Coin,
-    from: impl Into<String>,
-    msgs: &mut Vec<CosmosMsg<TokenFactoryMsg>>,
+    msgs: &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "burn"));
     msgs.push(
-        TokenFactoryMsg::BurnTokens {
-            denom: coin.denom,
-            amount: coin.amount,
-            burn_from_address: from.into(),
+        tokenfactory::MsgBurn {
+            sender: sender.into(),
+            amount: Some(into_proto_coin(coin)),
         }
         .into(),
     );
 }
 
-pub fn release<T>(
+pub fn release(
     coin: Coin,
     to: impl Into<String>,
-    msgs: &mut Vec<CosmosMsg<T>>,
+    msgs: &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
@@ -76,6 +69,17 @@ pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
     attrs.push(attr("action", "escrow"));
 }
 
+pub fn construct_denom(creator: &str, subdenom: &str) -> String {
+    format!("factory/{creator}/{subdenom}")
+}
+
+pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
+    ProtoCoin {
+        denom: coin.denom,
+        amount: coin.amount.to_string(),
+    }
+}
+
 /// Check whether a tokenfactory denom exists.
 ///
 /// We do this by attempting to query the denom's metadata. If it errors, we
@@ -83,20 +87,25 @@ pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
 ///
 /// This approach ignores other possible errors such as serde errors, but I
 /// can't think of a better method.
-pub fn denom_exists(querier: &QuerierWrapper<TokenFactoryQuery>, denom: &str) -> bool {
-    token_factory::query_metadata(querier, denom).is_ok()
+pub fn denom_exists(querier: &QuerierWrapper, denom: &str) -> StdResult<bool> {
+    Ok(tokenfactory::TokenfactoryQuerier::new(querier)
+        .denom_authority_metadata(denom.into())?
+        .authority_metadata
+        .is_some())
 }
 
 /// Assert that denom creation fee is zero.
 ///
 /// We don't have the money to pay the fee. If the fee is non-zero then we
 /// simply refuse to complete the transfer.
-pub fn assert_free_denom_creation(
-    querier: &QuerierWrapper<TokenFactoryQuery>,
-) -> Result<(), ContractError> {
-    let params = token_factory::query_params(querier)?;
+pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<(), ContractError> {
+    let fee = tokenfactory::TokenfactoryQuerier::new(querier)
+        .params()?
+        .params
+        .expect("params response does not contain params")
+        .denom_creation_fee;
 
-    if !params.params.denom_creation_fee.is_empty() {
+    if !fee.is_empty() {
         return Err(ContractError::NonZeroTokenCreationFee);
     }
 

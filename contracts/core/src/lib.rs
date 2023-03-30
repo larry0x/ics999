@@ -1,4 +1,4 @@
-#[cfg(not(feature = "library"))]
+// #[cfg(not(feature = "library"))]
 pub mod contract;
 pub mod controller;
 pub mod error;

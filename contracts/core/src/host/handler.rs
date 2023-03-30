@@ -5,12 +5,14 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
-use token_factory::{construct_denom, TokenFactoryMsg, TokenFactoryQuery};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
-    transfer::{assert_free_denom_creation, denom_exists, TraceItem},
+    transfer::{
+        assert_free_denom_creation, construct_denom, denom_exists, into_proto_coin, TraceItem,
+    },
     types::{Action, ActionResult, Trace},
     utils::default_salt,
     AFTER_ACTION,
@@ -101,10 +103,10 @@ impl Handler {
     /// Execute the next action in the queue. Saved the updated handler state.
     pub fn handle_next_action(
         mut self,
-        deps: DepsMut<TokenFactoryQuery>,
+        deps: DepsMut,
         env: Env,
-        response: Option<Response<TokenFactoryMsg>>,
-    ) -> Result<Response<TokenFactoryMsg>, ContractError> {
+        response: Option<Response>,
+    ) -> Result<Response, ContractError> {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
 
         // grab the first action in the queue
@@ -158,7 +160,7 @@ impl Handler {
                     // derive the ibc denom
                     let subdenom = trace.hash().to_hex();
                     let denom = construct_denom(env.contract.address.as_str(), &subdenom);
-                    let new_token = !denom_exists(&deps.querier, &denom);
+                    let new_token = !denom_exists(&deps.querier, &denom)?;
 
                     // if the denom does not exist yet -- create the denom and
                     // save the trace to store
@@ -169,7 +171,8 @@ impl Handler {
                         // is zero
                         assert_free_denom_creation(&deps.querier)?;
 
-                        response = response.add_message(TokenFactoryMsg::CreateDenom {
+                        response = response.add_message(tokenfactory::MsgCreateDenom {
+                            sender: env.contract.address.to_string(),
                             subdenom,
                         });
                     }
@@ -180,14 +183,25 @@ impl Handler {
                         recipient: recipient.to_string(),
                     });
 
-                    response.add_submessage(SubMsg::reply_on_success(
-                        TokenFactoryMsg::MintTokens {
-                            denom,
-                            amount,
-                            mint_to_address: recipient.into(),
-                        },
-                        AFTER_ACTION,
-                    ))
+                    let coin = Coin {
+                        denom,
+                        amount,
+                    };
+
+                    // tokenfactory only supports minting to the sender
+                    // therefore we first mint to ourself, then transfer to the recipient
+                    response
+                        .add_message(tokenfactory::MsgMint {
+                            sender: env.contract.address.into(),
+                            amount: Some(into_proto_coin(coin.clone())),
+                        })
+                        .add_submessage(SubMsg::reply_on_success(
+                            BankMsg::Send {
+                                to_address: recipient.into(),
+                                amount: vec![coin],
+                            },
+                            AFTER_ACTION,
+                        ))
                 } else {
                     // pop the sender chain from the path
                     trace.path.pop();

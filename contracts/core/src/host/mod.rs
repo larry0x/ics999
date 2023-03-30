@@ -5,7 +5,6 @@ use cosmwasm_std::{
     SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cw_utils::parse_execute_response_data;
-use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     error::ContractError,
@@ -52,29 +51,29 @@ pub fn packet_receive(
 }
 
 pub fn handle(
-    deps: DepsMut<TokenFactoryQuery>,
+    deps: DepsMut,
     env: Env,
     src: IbcEndpoint,
     dest: IbcEndpoint,
     controller: String,
     actions: Vec<Action>,
     traces: Vec<Trace>,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let handler = Handler::create(deps.storage, src, dest, controller, actions, traces)?;
     handler.handle_next_action(deps, env, None)
 }
 
 pub fn after_action(
-    deps: DepsMut<TokenFactoryQuery>,
+    deps: DepsMut,
     env: Env,
     res: SubMsgResult,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let mut handler = Handler::load(deps.storage)?;
     handler.after_action(res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env, None)
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> Result<Response<TokenFactoryMsg>, ContractError> {
+pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {

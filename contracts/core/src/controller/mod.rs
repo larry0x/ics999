@@ -3,7 +3,6 @@ use cosmwasm_std::{
     IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg,
     WasmMsg,
 };
-use token_factory::TokenFactoryMsg;
 
 use crate::{
     error::ContractError,
@@ -21,7 +20,7 @@ pub fn act<Q: CustomQuery>(
     connection_id: String,
     actions: Vec<Action>,
     timeout: Option<IbcTimeout>,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     let received_funds = Coins::from(info.funds);
     let mut sending_funds = Coins::empty();
     let mut msgs = vec![];
@@ -46,7 +45,7 @@ pub fn act<Q: CustomQuery>(
             if trace.sender_is_source(&localhost) {
                 escrow(&coin, &mut attrs);
             } else {
-                burn(coin.clone(), &info.sender, &mut msgs, &mut attrs);
+                burn(&info.sender, coin.clone(), &mut msgs, &mut attrs);
             }
 
             traces.push(trace.into_full_trace(denom));
@@ -87,9 +86,10 @@ pub fn act<Q: CustomQuery>(
 
 pub fn packet_lifecycle_complete(
     deps: DepsMut,
+    env: Env,
     packet: IbcPacket,
     ack_bin: Option<Binary>,
-) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
+) -> Result<IbcBasicResponse, ContractError> {
     let mut msgs = vec![];
     let mut attrs = vec![];
 
@@ -116,7 +116,7 @@ pub fn packet_lifecycle_complete(
                 if trace.sender_is_source(&packet.src) {
                     release(coin, &packet_data.sender, &mut msgs, &mut attrs);
                 } else {
-                    mint(coin, &packet_data.sender, &mut msgs, &mut attrs);
+                    mint(&env.contract.address, &packet_data.sender, coin,  &mut msgs, &mut attrs);
                 }
             }
         }
@@ -146,7 +146,7 @@ pub fn packet_lifecycle_complete(
 
 // this method must succeed whether the callback was successful or not
 // if the callback failed, we simply log it here
-pub fn after_callback(success: bool) -> Result<Response<TokenFactoryMsg>, ContractError> {
+pub fn after_callback(success: bool) -> Result<Response, ContractError> {
     Ok(Response::new()
         .add_attribute("method", "after_callback")
         .add_attribute("success", success.to_string()))

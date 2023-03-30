@@ -22,12 +22,12 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true, features = ["cosmwasm_1_2", "ibc3"] }
+cosmwasm-std    = { workspace = true, features = ["stargate", "ibc3", "cosmwasm_1_2"] }
 cw2             = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-utils        = { workspace = true }
+osmosis-std     = { workspace = true }
 ripemd          = { workspace = true }
 sha2            = { workspace = true }
 thiserror       = { workspace = true }
-token-factory   = { workspace = true }

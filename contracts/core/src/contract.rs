@@ -4,7 +4,6 @@ use cosmwasm_std::{
     IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
     StdResult,
 };
-use token_factory::{TokenFactoryMsg, TokenFactoryQuery};
 
 use crate::{
     controller,
@@ -33,11 +32,11 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut<TokenFactoryQuery>,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Act {
             connection_id,
@@ -68,10 +67,10 @@ pub fn execute(
 
 #[entry_point]
 pub fn reply(
-    deps: DepsMut<TokenFactoryQuery>,
+    deps: DepsMut,
     env: Env,
     msg: Reply,
-) -> Result<Response<TokenFactoryMsg>, ContractError> {
+) -> Result<Response, ContractError> {
     match msg.id {
         AFTER_ACTION => host::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => host::after_all_actions(msg.result),
@@ -159,17 +158,17 @@ pub fn ibc_packet_receive(
 #[entry_point]
 pub fn ibc_packet_ack(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     msg: IbcPacketAckMsg,
-) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
-    controller::packet_lifecycle_complete(deps, msg.original_packet, Some(msg.acknowledgement.data))
+) -> Result<IbcBasicResponse, ContractError> {
+    controller::packet_lifecycle_complete(deps, env, msg.original_packet, Some(msg.acknowledgement.data))
 }
 
 #[entry_point]
 pub fn ibc_packet_timeout(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     msg: IbcPacketTimeoutMsg,
-) -> Result<IbcBasicResponse<TokenFactoryMsg>, ContractError> {
-    controller::packet_lifecycle_complete(deps, msg.packet, None)
+) -> Result<IbcBasicResponse, ContractError> {
+    controller::packet_lifecycle_complete(deps, env, msg.packet, None)
 }
