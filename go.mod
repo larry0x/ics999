@@ -10,6 +10,7 @@ require (
 	github.com/cosmos/ibc-go/v4 v4.3.0
 	github.com/golang/protobuf v1.5.2
 	github.com/stretchr/testify v1.8.2
+	golang.org/x/crypto v0.5.0
 )
 
 require (
@@ -135,7 +136,6 @@ require (
 	github.com/zondax/ledger-go v0.14.1 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/exp v0.0.0-20230131160201-f062dba9d201 // indirect
 	golang.org/x/net v0.6.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect

@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -169,6 +170,15 @@ func relaySinglePacket(path *wasmibctesting.Path) (*channeltypes.Packet, []byte,
 	res, err := path.EndpointB.RecvPacketWithResult(packet)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	events := res.GetEvents()
+	for _, event := range events {
+		fmt.Println("event_type:", event.Type)
+		for _, attr := range event.Attributes {
+			fmt.Println(" - key:", string(attr.Key))
+			fmt.Println("   value:", string(attr.Value))
+		}
 	}
 
 	ack, err := ibctesting.ParseAckFromEvents(res.GetEvents())

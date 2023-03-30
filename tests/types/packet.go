@@ -13,9 +13,12 @@ const (
 	Version = "ics999-1"
 )
 
+// -------------------------------- PacketData ---------------------------------
+
 type PacketData struct {
 	Sender  string   `json:"sender"`
 	Actions []Action `json:"actions"`
+	Traces  []Trace  `json:"traces"`
 }
 
 type Action struct {
@@ -34,6 +37,8 @@ type TransferAction struct {
 type RegisterAccountAction struct {
 	Salt []byte `json:"salt,omitempty"`
 }
+
+// --------------------------------- PacketAck ---------------------------------
 
 type PacketAck struct {
 	Results []ActionResult `json:"results,omitempty"`
@@ -63,4 +68,12 @@ type ExecuteResult struct {
 
 type QueryResult struct {
 	Response []byte `json:"response"`
+}
+
+// ----------------------------------- Trace -----------------------------------
+
+type Trace struct {
+	Denom     string                    `json:"denom"`
+	BaseDenom string                    `json:"base_denom"`
+	Path      []wasmvmtypes.IBCEndpoint `json:"path"`
 }
