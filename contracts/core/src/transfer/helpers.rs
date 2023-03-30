@@ -1,4 +1,4 @@
-use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper, StdResult};
+use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper};
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
 };
@@ -69,10 +69,12 @@ pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
     attrs.push(attr("action", "escrow"));
 }
 
+/// Combine a creator address and a subdenom into the tokenfactory full denom
 pub fn construct_denom(creator: &str, subdenom: &str) -> String {
     format!("factory/{creator}/{subdenom}")
 }
 
+/// Convert a cosmwasm_std::Coin into a /cosmos.base.v1beta1.coin
 pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
     ProtoCoin {
         denom: coin.denom,
@@ -85,13 +87,14 @@ pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
 /// We do this by attempting to query the denom's metadata. If it errors, we
 /// assume the token doesn't exist.
 ///
-/// This approach ignores other possible errors such as serde errors, but I
-/// can't think of a better method.
-pub fn denom_exists(querier: &QuerierWrapper, denom: &str) -> StdResult<bool> {
-    Ok(tokenfactory::TokenfactoryQuerier::new(querier)
-        .denom_authority_metadata(denom.into())?
-        .authority_metadata
-        .is_some())
+/// TODO: this approach ignores other possible errors, such as the "stargate
+/// query disabled". we should parse the error code instead. if the denom indeed
+/// does not exist, the error should be:
+///   `codespace: tokenfactory, code: 10`
+pub fn denom_exists(querier: &QuerierWrapper, denom: &str) -> bool {
+    tokenfactory::TokenfactoryQuerier::new(querier)
+        .denom_authority_metadata(denom.into())
+        .is_ok()
 }
 
 /// Assert that denom creation fee is zero.

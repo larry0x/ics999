@@ -160,7 +160,7 @@ impl Handler {
                     // derive the ibc denom
                     let subdenom = trace.hash().to_hex();
                     let denom = construct_denom(env.contract.address.as_str(), &subdenom);
-                    let new_token = !denom_exists(&deps.querier, &denom)?;
+                    let new_token = !denom_exists(&deps.querier, &denom);
 
                     // if the denom does not exist yet -- create the denom and
                     // save the trace to store

@@ -1,7 +1,6 @@
 use cosmwasm_std::{
-    from_slice, to_binary, Binary, Coin, CustomQuery, Deps, DepsMut, Env, IbcBasicResponse,
-    IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg,
-    WasmMsg,
+    from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
+    IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
 };
 
 use crate::{
@@ -13,8 +12,8 @@ use crate::{
     AFTER_CALLBACK,
 };
 
-pub fn act<Q: CustomQuery>(
-    deps: DepsMut<Q>,
+pub fn act(
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     connection_id: String,
@@ -163,7 +162,7 @@ fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
         .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
-fn localhost<Q: CustomQuery>(deps: Deps<Q>, connection_id: &str) -> StdResult<IbcEndpoint> {
+fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
     Ok(IbcEndpoint {
         port_id: query_port(&deps.querier)?,
         channel_id: ACTIVE_CHANNELS.load(deps.storage, connection_id)?,
