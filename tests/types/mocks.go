@@ -66,3 +66,24 @@ type NumberQuery struct{}
 type NumberResponse struct {
 	Number uint64 `json:"number"`
 }
+
+// --------------------------------- mock-dex ----------------------------------
+
+type DexInstantiateMsg struct {
+	DenomIn  string `json:"denom_in"`
+	DenomOut string `json:"denom_out"`
+}
+
+type DexExecuteMsg struct {
+	Swap *DexSwap `json:"swap,omitempty"`
+}
+
+type DexSwap struct{}
+
+type DexQueryMsg struct {
+	Config *DexConfigQuery `json:"Config"`
+}
+
+type DexConfigQuery struct{}
+
+type DexConfigResponse DexInstantiateMsg

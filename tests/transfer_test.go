@@ -1,6 +1,8 @@
 package e2e_test
 
 import (
+	"encoding/json"
+
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -208,5 +210,109 @@ func (suite *testSuite) TestRefund() {
 // swap at a DEX contract on chainB, then send the proceedings back to chainA,
 // all in the same packet.
 func (suite *testSuite) TestSwap() {
-	// todo
+	var (
+		// astro token's denom on chainB
+		astroB = deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "uastro")
+
+		// usdc token's denom on chainA
+		usdcA = deriveVoucherDenom(suite.chainA, []*wasmibctesting.Path{reversePath(suite.pathAB)}, "uusdc")
+
+		// how many astro to send chainA --> chainB and be swapped
+		amountAB int64 = 12345
+
+		// how many USDC the seed the DEX
+		dexInitialBalance int64 = 23456
+	)
+
+	// deploy mock-dex contract on chainB
+	dexStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_dex-aarch64.wasm")
+	dexInstantiateMsg, err := json.Marshal(&types.DexInstantiateMsg{
+		DenomIn:  astroB,
+		DenomOut: "uusdc",
+	})
+	require.NoError(suite.T(), err)
+	dexAddr := suite.chainB.InstantiateContract(dexStoreRes.CodeID, dexInstantiateMsg)
+
+	// fund the dex with USDC
+	mintCoinsToAccount(suite.chainB.TestChain, dexAddr, sdk.NewCoin("uusdc", sdk.NewInt(dexInitialBalance)))
+
+	// execute the actions:
+	// - register an interchain account
+	// - send ASTRO to the ICA
+	// - swap ASTRO for USDC
+	// - send USDC back
+	swapMsg, err := json.Marshal(&types.DexExecuteMsg{
+		Swap: &types.DexSwap{},
+	})
+	require.NoError(suite.T(), err)
+
+	sendBackMsg, err := json.Marshal(&types.CoreExecuteMsg{
+		Act: &types.Act{
+			ConnectionID: suite.pathAB.EndpointB.ConnectionID,
+			Actions: []types.Action{
+				{
+					Transfer: &types.TransferAction{
+						Denom:     "uusdc",
+						Amount:    sdk.NewInt(amountAB),
+						Recipient: suite.chainA.senderAddr.String(),
+					},
+				},
+			},
+		},
+	})
+	require.NoError(suite.T(), err)
+
+	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+		{
+			RegisterAccount: &types.RegisterAccountAction{},
+		},
+		{
+			Transfer: &types.TransferAction{
+				Denom:  "uastro",
+				Amount: sdk.NewInt(amountAB),
+			},
+		},
+		{
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: dexAddr.String(),
+						Msg:          swapMsg,
+						Funds:        []wasmvmtypes.Coin{wasmvmtypes.NewCoin(uint64(amountAB), astroB)},
+					},
+				},
+			},
+		},
+		{
+			Execute: &wasmvmtypes.CosmosMsg{
+				Wasm: &wasmvmtypes.WasmMsg{
+					Execute: &wasmvmtypes.ExecuteMsg{
+						ContractAddr: suite.chainB.coreAddr.String(),
+						Msg:          sendBackMsg,
+						Funds:        []wasmvmtypes.Coin{wasmvmtypes.NewCoin(uint64(amountAB), "uusdc")},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(suite.T(), err)
+	requirePacketSuccess(suite.T(), ack)
+
+	// relay the packet that send the USDC back to chainA
+	_, ackBytes, err := relaySinglePacket(reversePath(suite.pathAB))
+	require.NoError(suite.T(), err)
+
+	ack = &types.PacketAck{}
+	err = json.Unmarshal(ackBytes, ack)
+	require.NoError(suite.T(), err)
+
+	requirePacketSuccess(suite.T(), ack)
+
+	// verify balances are correct
+	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, "uastro", mockInitialBalance-amountAB)
+	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.senderAddr, usdcA, amountAB)
+	requireBalanceEqual(suite.T(), suite.chainA, suite.chainA.coreAddr, "uastro", amountAB)
+	requireBalanceEqual(suite.T(), suite.chainB, suite.chainA.coreAddr, "uusdc", amountAB)
+	requireBalanceEqual(suite.T(), suite.chainB, dexAddr, astroB, amountAB)
+	requireBalanceEqual(suite.T(), suite.chainB, dexAddr, "uusdc", dexInitialBalance-amountAB)
 }
