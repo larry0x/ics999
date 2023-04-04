@@ -44,7 +44,11 @@ pub fn act(
             if trace.sender_is_source(&localhost) {
                 escrow(&coin, &mut attrs);
             } else {
-                burn(&info.sender, coin.clone(), &mut msgs, &mut attrs);
+                // note that we burn from the contract address instead of from
+                // info.sender
+                // this is because the token to be burned should have already
+                // been sent to the contract address along with the executeMsg
+                burn(&env.contract.address, coin.clone(), &mut msgs, &mut attrs);
             }
 
             if !traces.iter().any(|trace| trace.denom == *denom) {
