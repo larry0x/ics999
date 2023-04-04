@@ -3,6 +3,7 @@ members = [
   "contracts/account",
   "contracts/core",
   "contracts/mocks/*",
+  "packages/*",
 ]
 
 [workspace.package]

@@ -7,11 +7,12 @@ use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
+use ics999::{Action, ActionResult, Trace};
+
 use crate::{
     error::ContractError,
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
-    types::{Action, ActionResult, Trace},
     utils::default_salt,
     AFTER_ACTION,
 };

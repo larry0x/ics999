@@ -1,10 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{HexBinary, IbcEndpoint, IbcTimeout};
 
-use crate::{
-    transfer::TraceItem,
-    types::{Action, Trace},
-};
+use ics999::{Action, Trace};
+
+use crate::transfer::TraceItem;
 
 #[cw_serde]
 pub struct InstantiateMsg {

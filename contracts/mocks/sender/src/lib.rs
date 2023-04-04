@@ -8,10 +8,8 @@ use cosmwasm_std::{
 use cw_paginate::paginate_map;
 use cw_storage_plus::{Bound, Item, Map};
 
-use one_core::{
-    types::{Action, PacketAck},
-    utils::Coins,
-};
+use ics999::{Action, PacketAck};
+use one_core::utils::Coins;
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
 

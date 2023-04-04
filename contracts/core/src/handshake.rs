@@ -3,7 +3,9 @@ use cosmwasm_std::{
     Storage,
 };
 
-use crate::{error::ContractError, state::ACTIVE_CHANNELS, types};
+use ics999;
+
+use crate::{error::ContractError, state::ACTIVE_CHANNELS};
 
 pub fn open_init(
     deps: DepsMut,
@@ -54,25 +56,25 @@ fn validate_order_and_version(
     version: &str,
     counterparty_version: Option<&str>,
 ) -> Result<(), ContractError> {
-    if *order != types::ORDER {
+    if *order != ics999::ORDER {
         return Err(ContractError::IncorrectOrder {
             actual: order.clone(),
-            expected: types::ORDER,
+            expected: ics999::ORDER,
         });
     }
 
-    if version != types::VERSION {
+    if version != ics999::VERSION {
         return Err(ContractError::IncorrectVersion {
             actual: version.into(),
-            expected: types::VERSION.into(),
+            expected: ics999::VERSION.into(),
         });
     }
 
     if let Some(cp_version) = counterparty_version {
-        if cp_version != types::VERSION {
+        if cp_version != ics999::VERSION {
             return Err(ContractError::IncorrectVersion {
                 actual: cp_version.into(),
-                expected: types::VERSION.into(),
+                expected: ics999::VERSION.into(),
             });
         }
     }

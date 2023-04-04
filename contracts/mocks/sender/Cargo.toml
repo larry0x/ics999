@@ -23,5 +23,6 @@ cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }
+ics999          = { path = "../../../packages/ics999" }
 one-core        = { path = "../../core", features = ["library"] }
 thiserror       = { workspace = true }

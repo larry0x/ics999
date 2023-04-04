@@ -6,12 +6,10 @@ use cosmwasm_std::{
 };
 use cw_utils::parse_execute_response_data;
 
+use ics999::{Action, PacketAck, PacketData, Trace};
+
 use crate::{
-    error::ContractError,
-    msg::ExecuteMsg,
-    types::{Action, PacketAck, PacketData, Trace},
-    utils::connection_of_channel,
-    AFTER_ALL_ACTIONS,
+    error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
 };
 
 use self::handler::Handler;

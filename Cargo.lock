@@ -469,6 +469,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ics999"
+version = "0.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -529,6 +537,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-paginate",
  "cw-storage-plus",
+ "ics999",
  "one-core",
  "thiserror",
 ]
@@ -580,6 +589,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "ics999",
  "osmosis-std",
  "ripemd",
  "sha2 0.10.6",

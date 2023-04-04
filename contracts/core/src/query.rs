@@ -2,11 +2,12 @@ use cosmwasm_std::{Deps, StdResult};
 use cw_paginate::paginate_map;
 use cw_storage_plus::Bound;
 
+use ics999::Trace;
+
 use crate::{
     msg::{AccountResponse, ActiveChannelResponse, ConfigResponse, DenomHashResponse},
     state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
     transfer::TraceItem,
-    types::Trace,
 };
 
 pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
