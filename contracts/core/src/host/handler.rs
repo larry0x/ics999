@@ -331,11 +331,16 @@ impl Handler {
 
         // we only need to parse the result if the action is an msg execution
         if let Action::Execute(_) = action {
-            let data = data.expect("missing wasm execute response data");
-            let execute_res = parse_execute_response_data(&data)?;
+            // note that the contract being executed does not necessarily return
+            // any data
+            let data = data
+                .map(|bin| parse_execute_response_data(&bin))
+                .transpose()?
+                .map(|res| res.data)
+                .flatten();
 
             self.results.push(ActionResult::Execute {
-                data: execute_res.data,
+                data,
             });
         }
 
