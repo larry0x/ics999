@@ -40,7 +40,7 @@ pub enum ContractError {
         denom: String,
     },
 
-    #[error("incorrect amount of funds sent: expectiing `{expected}`, found `{actual}`")]
+    #[error("incorrect amount of funds sent: expecting `{expected}`, found `{actual}`")]
     FundsMismatch {
         actual: Coins,
         expected: Coins,
