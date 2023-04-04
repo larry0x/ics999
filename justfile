@@ -5,7 +5,7 @@ test:
   cargo test --locked
 
 e2e:
-  go test ./e2e/...
+  go test ./tests/...
 
 optimize:
   if [[ $(uname -m) =~ "arm64" ]]; then \
