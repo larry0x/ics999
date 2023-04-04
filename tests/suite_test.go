@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,13 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	//lint:ignore SA1019 yeah we use ripemd160
+	"golang.org/x/crypto/ripemd160"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v4/testing"
 
 	tokenfactorytypes "github.com/CosmWasm/token-factory/x/tokenfactory/types"
 	wasmibctesting "github.com/CosmWasm/wasmd/x/wasm/ibctesting"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
+	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 
 	"ics999/tests/types"
 )
@@ -39,14 +44,10 @@ func (suite *testSuite) SetupTest() {
 	suite.chainA = setupChain(
 		suite.T(),
 		suite.coordinator.GetChain(wasmibctesting.GetChainID(0)),
-		sdk.NewCoin("uastro", sdk.NewInt(100_000_000)),
-		sdk.NewCoin("umars", sdk.NewInt(100_000_000)),
+		sdk.NewCoin("uastro", sdk.NewInt(mockInitialBalance)),
+		sdk.NewCoin("umars", sdk.NewInt(mockInitialBalance)),
 	)
-	suite.chainB = setupChain(
-		suite.T(),
-		suite.coordinator.GetChain(wasmibctesting.GetChainID(1)),
-		sdk.NewCoin("uusdc", sdk.NewInt(100_000_000)),
-	)
+	suite.chainB = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(1)))
 	suite.chainC = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(2)))
 
 	suite.pathAB = setupConnection(suite.coordinator, suite.chainA, suite.chainB)
@@ -154,6 +155,7 @@ func setupConnection(coordinator *wasmibctesting.Coordinator, chainA, chainB *te
 func relaySinglePacket(path *wasmibctesting.Path) (*channeltypes.Packet, []byte, error) {
 	// in this function, we relay from EndpointA --> EndpointB
 	src := path.EndpointA
+	dest := path.EndpointB
 
 	if len(src.Chain.PendingSendPackets) < 1 {
 		return nil, nil, errors.New("no packet to relay")
@@ -163,15 +165,17 @@ func relaySinglePacket(path *wasmibctesting.Path) (*channeltypes.Packet, []byte,
 	packet := src.Chain.PendingSendPackets[0]
 	src.Chain.PendingSendPackets = src.Chain.PendingSendPackets[1:]
 
-	if err := path.EndpointB.UpdateClient(); err != nil {
+	if err := dest.UpdateClient(); err != nil {
 		return nil, nil, err
 	}
 
-	res, err := path.EndpointB.RecvPacketWithResult(packet)
+	res, err := dest.RecvPacketWithResult(packet)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	// print out the events for debugging purpose
+	// TODO: delete this
 	events := res.GetEvents()
 	for _, event := range events {
 		fmt.Println("event_type:", event.Type)
@@ -186,7 +190,7 @@ func relaySinglePacket(path *wasmibctesting.Path) (*channeltypes.Packet, []byte,
 		return nil, nil, err
 	}
 
-	if err = path.EndpointA.AcknowledgePacket(packet, ack); err != nil {
+	if err = src.AcknowledgePacket(packet, ack); err != nil {
 		return nil, nil, err
 	}
 
@@ -201,6 +205,157 @@ func reversePath(path *wasmibctesting.Path) *wasmibctesting.Path {
 		EndpointA: path.EndpointB,
 		EndpointB: path.EndpointA,
 	}
+}
+
+func act(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
+	// compose the executeMsg
+	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
+		Send: &types.Send{
+			ConnectionID: path.EndpointA.ConnectionID,
+			Actions:      actions,
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// executes mock-sender contract on chainA
+	if _, err = src.SendMsgs(&wasmtypes.MsgExecuteContract{
+		Sender:   src.SenderAccount.GetAddress().String(),
+		Contract: src.senderAddr.String(),
+		Msg:      executeMsg,
+		Funds:    []sdk.Coin{},
+	}); err != nil {
+		return nil, nil, err
+	}
+
+	// relay the packet
+	packet, ackBytes, err := relaySinglePacket(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ack := &types.PacketAck{}
+	if err = json.Unmarshal(ackBytes, ack); err != nil {
+		return nil, nil, err
+	}
+
+	return packet, ack, nil
+}
+
+func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddress, error) {
+	accountRes := types.AccountResponse{}
+	if err := chain.SmartQuery(
+		chain.coreAddr.String(),
+		types.CoreQueryMsg{
+			Account: &types.AccountQuery{
+				ChannelID:  channelID,
+				Controller: controller,
+			},
+		},
+		&accountRes,
+	); err != nil {
+		return nil, err
+	}
+
+	accountAddr, err := sdk.AccAddressFromBech32(accountRes.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	return accountAddr, nil
+}
+
+func deriveVoucherDenom(chain *testChain, testPaths []*wasmibctesting.Path, baseDenom string) string {
+	// convert ibctesting.Endpoint to wasmvmtypes.IBCEndpoint
+	path := []wasmvmtypes.IBCEndpoint{}
+	for _, testPath := range testPaths {
+		path = append(path, wasmvmtypes.IBCEndpoint{
+			PortID:    testPath.EndpointB.ChannelConfig.PortID,
+			ChannelID: testPath.EndpointB.ChannelID,
+		})
+	}
+
+	denomHash := denomHashFromTrace(types.Trace{
+		BaseDenom: baseDenom,
+		Path:      path,
+	})
+
+	return fmt.Sprintf("factory/%s/%s", chain.coreAddr, denomHash)
+}
+
+func denomHashFromTrace(trace types.Trace) string {
+	hasher := ripemd160.New()
+
+	hasher.Write([]byte(trace.BaseDenom))
+
+	for _, step := range trace.Path {
+		hasher.Write([]byte(step.PortID))
+		hasher.Write([]byte(step.ChannelID))
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
+	require.NotEmpty(t, ack.Results)
+	require.Empty(t, ack.Error)
+}
+
+func requirePacketFailed(t *testing.T, ack *types.PacketAck) {
+	require.Empty(t, ack.Results)
+	require.NotEmpty(t, ack.Error)
+}
+
+func requireBalanceEqual(t *testing.T, chain *testChain, addr sdk.AccAddress, denom string, expBalance int64) {
+	balance := chain.Balance(addr, denom)
+	require.Equal(t, sdk.NewInt(expBalance), balance.Amount)
+}
+
+func requireTraceEqual(t *testing.T, chain *testChain, denom string, expTrace types.Trace) {
+	traceResp := types.DenomTraceResponse{}
+	err := chain.SmartQuery(
+		chain.coreAddr.String(),
+		&types.CoreQueryMsg{
+			DenomTrace: &types.DenomTraceQuery{
+				Denom: denom,
+			},
+		},
+		&traceResp,
+	)
+	require.NoError(t, err)
+	require.Equal(t, expTrace.Denom, traceResp.Denom)
+	require.Equal(t, expTrace.BaseDenom, traceResp.BaseDenom)
+	require.Equal(t, expTrace.Path, traceResp.Path)
+}
+
+func requireNumberEqual(t *testing.T, chain *testChain, expNumber uint64) {
+	numberRes := types.NumberResponse{}
+	err := chain.SmartQuery(
+		chain.counterAddr.String(),
+		&types.CounterQueryMsg{
+			Number: &types.NumberQuery{},
+		},
+		&numberRes,
+	)
+	require.NoError(t, err)
+	require.Equal(t, expNumber, numberRes.Number)
+}
+
+func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, sequence uint64, expOutcome string) {
+	outcomeRes := types.OutcomeResponse{}
+	err := chain.SmartQuery(
+		chain.senderAddr.String(),
+		&types.SenderQueryMsg{
+			Outcome: &types.OutcomeQuery{
+				ChannelID: channelID,
+				Sequence:  sequence,
+			},
+		},
+		&outcomeRes,
+	)
+	require.NoError(t, err)
+	require.Equal(t, expOutcome, outcomeRes.Outcome)
 }
 
 func Test(t *testing.T) {

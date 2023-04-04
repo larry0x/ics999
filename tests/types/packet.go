@@ -77,3 +77,8 @@ type Trace struct {
 	BaseDenom string                    `json:"base_denom"`
 	Path      []wasmvmtypes.IBCEndpoint `json:"path"`
 }
+
+type TraceItem struct {
+	BaseDenom string                    `json:"base_denom"`
+	Path      []wasmvmtypes.IBCEndpoint `json:"path"`
+}

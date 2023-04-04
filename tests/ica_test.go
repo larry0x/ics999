@@ -1,16 +1,11 @@
 package e2e_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"testing"
 
 	//lint:ignore SA1019 cosmos-sdk uses deprecated dependency, not my problem
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -23,7 +18,7 @@ import (
 // configuration.
 func (suite *testSuite) TestRegisterAccount() {
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
-	_, ack1, err := act(suite, []types.Action{
+	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -64,7 +59,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	require.Equal(suite.T(), suite.chainB.coreAddr.String(), ownershipRes.Owner)
 
 	// attempt to register account again, should fail
-	_, ack2, err := act(suite, []types.Action{
+	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -77,7 +72,7 @@ func (suite *testSuite) TestRegisterAccount() {
 // interchain account to increment its number.
 func (suite *testSuite) TestExecuteWasm() {
 	// test 1 - register account and increment counter once in a single packet
-	_, ack1, err := act(suite, []types.Action{
+	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -106,7 +101,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	requireNumberEqual(suite.T(), suite.chainB, 1)
 
 	// test 2 - increment the number more times in a single packet
-	_, ack2, err := act(suite, []types.Action{
+	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Execute: &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
@@ -151,7 +146,7 @@ func (suite *testSuite) TestExecuteWasm() {
 func (suite *testSuite) TestQuery() {
 	// we query the number (both raw and smart), increase the counter once, then
 	// query again
-	_, ack, err := act(suite, []types.Action{
+	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Query: &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
@@ -216,7 +211,7 @@ func (suite *testSuite) TestQuery() {
 
 func (suite *testSuite) TestCallback() {
 	// register an account, increment the counter, and query the number
-	packet1, ack1, err := act(suite, []types.Action{
+	packet1, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
@@ -250,7 +245,7 @@ func (suite *testSuite) TestCallback() {
 	requireOutcomeEqual(suite.T(), suite.chainA, packet1.SourceChannel, packet1.Sequence, "successful")
 
 	// do the same thing but with an intentionally failed packet
-	packet2, ack2, err := act(suite, []types.Action{
+	packet2, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Execute: &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
@@ -268,104 +263,4 @@ func (suite *testSuite) TestCallback() {
 
 	// mock-sender should have recorded the correct packet outcome
 	requireOutcomeEqual(suite.T(), suite.chainA, packet2.SourceChannel, packet2.Sequence, "failed")
-}
-
-// ----------------------------- helper functions ------------------------------
-
-func act(suite *testSuite, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
-	// compose the executeMsg
-	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
-		Send: &types.Send{
-			ConnectionID: suite.pathAB.EndpointA.ConnectionID,
-			Actions:      actions,
-		},
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// executes mock-sender contract on chainA
-	if _, err = suite.chainA.SendMsgs(&wasmtypes.MsgExecuteContract{
-		Sender:   suite.chainA.SenderAccount.GetAddress().String(),
-		Contract: suite.chainA.senderAddr.String(),
-		Msg:      executeMsg,
-		Funds:    []sdk.Coin{},
-	}); err != nil {
-		return nil, nil, err
-	}
-
-	// relay the packet
-	packet, ackBytes, err := relaySinglePacket(suite.pathAB)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	ack := &types.PacketAck{}
-	if err = json.Unmarshal(ackBytes, ack); err != nil {
-		return nil, nil, err
-	}
-
-	return packet, ack, nil
-}
-
-func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddress, error) {
-	accountRes := types.AccountResponse{}
-	if err := chain.SmartQuery(
-		chain.coreAddr.String(),
-		types.CoreQueryMsg{
-			Account: &types.AccountQuery{
-				ChannelID:  channelID,
-				Controller: controller,
-			},
-		},
-		&accountRes,
-	); err != nil {
-		return nil, err
-	}
-
-	accountAddr, err := sdk.AccAddressFromBech32(accountRes.Address)
-	if err != nil {
-		return nil, err
-	}
-
-	return accountAddr, nil
-}
-
-func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
-	require.NotEmpty(t, ack.Results)
-	require.Empty(t, ack.Error)
-}
-
-func requirePacketFailed(t *testing.T, ack *types.PacketAck) {
-	require.Empty(t, ack.Results)
-	require.NotEmpty(t, ack.Error)
-}
-
-func requireNumberEqual(t *testing.T, chain *testChain, expNumber uint64) {
-	numberRes := types.NumberResponse{}
-	err := chain.SmartQuery(
-		chain.counterAddr.String(),
-		&types.CounterQueryMsg{
-			Number: &types.NumberQuery{},
-		},
-		&numberRes,
-	)
-	require.NoError(t, err)
-	require.Equal(t, expNumber, numberRes.Number)
-}
-
-func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, sequence uint64, expOutcome string) {
-	outcomeRes := types.OutcomeResponse{}
-	err := chain.SmartQuery(
-		chain.senderAddr.String(),
-		&types.SenderQueryMsg{
-			Outcome: &types.OutcomeQuery{
-				ChannelID: channelID,
-				Sequence:  sequence,
-			},
-		},
-		&outcomeRes,
-	)
-	require.NoError(t, err)
-	require.Equal(t, expOutcome, outcomeRes.Outcome)
 }

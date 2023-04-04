@@ -16,6 +16,9 @@ type Act struct {
 
 type CoreQueryMsg struct {
 	Config         *ConfigQuery         `json:"config,omitempty"`
+	DenomHash      *DenomHashQuery      `json:"denom_hash,omitempty"`
+	DenomTrace     *DenomTraceQuery     `json:"denom_trace,omitempty"`
+	DenomTraces    *DenomTracesQuery    `json:"denom_traces,omitempty"`
 	Account        *AccountQuery        `json:"account,omitempty"`
 	Accounts       *AccountsQuery       `json:"accounts,omitempty"`
 	ActiveChannel  *ActiveChannelQuery  `json:"active_channel,omitempty"`
@@ -26,9 +29,29 @@ type ConfigQuery struct{}
 
 type ConfigResponse struct {
 	AccountCodeID      uint64 `json:"account_code_id"`
-	Transfer           string `json:"transfer"`
 	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
 }
+
+type DenomHashQuery struct {
+	Trace TraceItem `json:"trace"`
+}
+
+type DenomHashResponse struct {
+	Hash string `json:"hash"` // hex-encoded string
+}
+
+type DenomTraceQuery struct {
+	Denom string `json:"denom"`
+}
+
+type DenomTraceResponse Trace
+
+type DenomTracesQuery struct {
+	StartAfter string `json:"start_after,omitempty"`
+	Limit      uint32 `json:"limit,omitempty"`
+}
+
+type DenomTracesResponse []Trace
 
 type AccountQuery struct {
 	ChannelID  string `json:"channel_id"`
