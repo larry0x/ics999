@@ -22,7 +22,7 @@ pub fn packet_receive(
     packet: IbcPacket,
 ) -> Result<IbcReceiveResponse, ContractError> {
     // find the connection ID corresponding to the sender channel
-    let connection_id = connection_of_channel(&deps.querier, &packet.src.channel_id)?;
+    let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
 
     // deserialize packet data
     let pd: PacketData = from_slice(&packet.data)?;
@@ -32,7 +32,7 @@ pub fn packet_receive(
     Ok(IbcReceiveResponse::new()
         .add_attribute("method", "packet_receive")
         .add_attribute("connection_id", connection_id)
-        .add_attribute("channel_id", &packet.src.channel_id)
+        .add_attribute("channel_id", &packet.dest.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
         .add_submessage(SubMsg::reply_always(
             WasmMsg::Execute {
