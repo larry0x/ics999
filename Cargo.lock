@@ -526,6 +526,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw-utils",
  "thiserror",
 ]
 
