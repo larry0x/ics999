@@ -2,7 +2,7 @@ clippy:
   cargo +nightly clippy --tests
 
 test:
-  cargo test --locked
+  cargo test --locked --workspace --exclude mock-counter --exclude mock-dex --exclude mock-sender
 
 e2e:
   go test ./tests/...
