@@ -11,6 +11,9 @@ documentation = { workspace = true }
 keywords      = { workspace = true }
 rust-version  = { workspace = true }
 
+[lib]
+doctest = false
+
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
