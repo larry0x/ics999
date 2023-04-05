@@ -23,7 +23,7 @@ jobs:
             cosmwasm/workspace-optimizer:0.12.12
 
       - name: Run tests
-        run: go test ./e2e/...
+        run: go test ./tests/...
 
   lint:
     name: Lint
