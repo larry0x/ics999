@@ -207,8 +207,12 @@ impl Handler {
                     trace.path.pop();
 
                     // derive the ibc denom
-                    let subdenom = trace.hash().to_hex();
-                    let denom = construct_denom(env.contract.address.as_str(), &subdenom);
+                    let denom = if trace.path.is_empty() {
+                        trace.base_denom
+                    } else {
+                        let subdenom = trace.hash().to_hex();
+                        construct_denom(env.contract.address.as_str(), &subdenom)
+                    };
 
                     self.results.push(ActionResult::Transfer {
                         denom: denom.clone(),
