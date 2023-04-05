@@ -1,8 +1,7 @@
 mod coins;
 
 use cosmwasm_std::{
-    Binary, ChannelResponse,  CustomQuery, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest,
-    StdResult,
+    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest, StdResult,
 };
 use sha2::{Digest, Sha256};
 
@@ -47,7 +46,7 @@ pub fn connection_of_channel(
 ///
 /// Ideally we can simply to querier.query_port but this function isn't
 /// available yet.
-pub fn query_port<Q: CustomQuery>(querier: &QuerierWrapper<Q>) -> StdResult<String> {
+pub fn query_port(querier: &QuerierWrapper) -> StdResult<String> {
     querier.query::<PortIdResponse>(&QueryRequest::Ibc(IbcQuery::PortId {}))
         .map(|res| res.port_id)
 }
