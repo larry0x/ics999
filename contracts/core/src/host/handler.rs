@@ -340,8 +340,7 @@ impl Handler {
             let data = data
                 .map(|bin| parse_execute_response_data(&bin))
                 .transpose()?
-                .map(|res| res.data)
-                .flatten();
+                .and_then(|res| res.data);
 
             self.results.push(ActionResult::Execute {
                 data,
