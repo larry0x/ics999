@@ -3,7 +3,7 @@ use cw_utils::{ParseReplyError, PaymentError};
 
 use crate::utils::Coins;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),

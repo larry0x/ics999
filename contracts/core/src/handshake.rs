@@ -116,3 +116,112 @@ pub fn close(msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse, ContractError>
         } => Ok(IbcBasicResponse::new()),
     }
 }
+
+// ----------------------------------- Tests -----------------------------------
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{
+        testing::{mock_dependencies, MOCK_CONTRACT_ADDR},
+        IbcEndpoint,
+    };
+
+    use super::*;
+
+    fn mock_ibc_endpoint() -> IbcEndpoint {
+        IbcEndpoint {
+            port_id: format!("wasm.{MOCK_CONTRACT_ADDR}"),
+            channel_id: "channel-0".into(),
+        }
+    }
+
+    fn mock_ibc_channel() -> IbcChannel {
+        IbcChannel::new(
+            mock_ibc_endpoint(),
+            mock_ibc_endpoint(),
+            ics999::ORDER,
+            ics999::VERSION,
+            "connection-0",
+        )
+    }
+
+    #[test]
+    fn proper_open_init() {
+        let mut deps = mock_dependencies();
+
+        // valid channel
+        {
+            let res = open_init(deps.as_mut(), mock_ibc_channel()).unwrap();
+            assert_eq!(res, None);
+        }
+
+        // incorrect ordering
+        {
+            let mut channel = mock_ibc_channel();
+            channel.order = IbcOrder::Ordered;
+
+            let err = open_init(deps.as_mut(), channel).unwrap_err();
+            assert!(matches!(err, ContractError::IncorrectOrder { .. }));
+        }
+
+        // incorrect version
+        {
+            let mut channel = mock_ibc_channel();
+            channel.version = "ics20".into();
+
+            let err = open_init(deps.as_mut(), channel).unwrap_err();
+            assert!(matches!(err, ContractError::IncorrectVersion { .. }));
+        }
+
+        // channel already exists for the connection
+        {
+            let channel = mock_ibc_channel();
+
+            ACTIVE_CHANNELS
+                .save(deps.as_mut().storage, &channel.connection_id, &"channel-123".into())
+                .unwrap();
+
+            let err = open_init(deps.as_mut(), channel).unwrap_err();
+            assert!(matches!(err, ContractError::ChannelExists { .. }));
+        }
+    }
+
+    #[test]
+    fn proper_open_try() {
+        let mut deps = mock_dependencies();
+
+        // valid channel
+        {
+            let res = open_try(deps.as_mut(), mock_ibc_channel(), ics999::VERSION.into()).unwrap();
+            assert_eq!(res, None);
+        }
+
+        // incorrect countarparty version
+        {
+            let err = open_try(deps.as_mut(), mock_ibc_channel(), "ics20".into()).unwrap_err();
+            assert!(matches!(err, ContractError::IncorrectVersion { .. }));
+        }
+    }
+
+    #[test]
+    fn proper_open_connect() {
+        let mut deps = mock_dependencies();
+
+        let channel = mock_ibc_channel();
+
+        let res = open_connect(deps.as_mut(), &channel, Some(ics999::VERSION)).unwrap();
+        assert!(res.messages.is_empty());
+
+        let active_channel = ACTIVE_CHANNELS.load(deps.as_ref().storage, &channel.connection_id).unwrap();
+        assert_eq!(active_channel, channel.endpoint.channel_id);
+    }
+
+    #[test]
+    fn rejecting_channel_close() {
+        let err = close(IbcChannelCloseMsg::CloseInit {
+            channel: mock_ibc_channel(),
+        })
+        .unwrap_err();
+        assert_eq!(err, ContractError::UnexpectedChannelClosure);
+    }
+}
