@@ -22,7 +22,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true, features = ["staking", "stargate", "ibc3", "cosmwasm_1_2"] }
+cosmwasm-std    = { workspace = true }
 cw2             = { workspace = true }
 cw-paginate     = { workspace = true }
 cw-storage-plus = { workspace = true }

@@ -19,7 +19,7 @@ rust-version  = "1.65.0"
 
 [workspace.dependencies]
 cosmwasm-schema = "1.2"
-cosmwasm-std    = "1.2"
+cosmwasm-std    = { version = "1.2", features = ["staking", "stargate", "ibc3", "cosmwasm_1_1", "cosmwasm_1_2"] }
 cw2             = "1.0"
 cw-ownable      = "0.5"
 cw-paginate     = "0.2"
