@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, fmt};
 
-use cosmwasm_std::{Coin, Uint128, OverflowError};
+use cosmwasm_std::{Coin, OverflowError, Uint128};
 
 // denom => amount
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Coins(BTreeMap<String, Uint128>);
 
 // UNSAFE: because we don't check for duplicate denoms or zero amounts
@@ -61,5 +61,46 @@ impl Coins {
         let amount = self.0.entry(new_coin.denom).or_insert_with(Uint128::zero);
         *amount = amount.checked_add(new_coin.amount)?;
         Ok(())
+    }
+}
+
+// ----------------------------------- Tests -----------------------------------
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::coin;
+
+    use super::*;
+
+    #[test]
+    fn adding() {
+        let mut coins = Coins::empty();
+
+        coins.add(coin(12345, "umars")).unwrap();
+        coins.add(coin(23456, "uastro")).unwrap();
+        coins.add(coin(34567, "uosmo")).unwrap();
+        coins.add(coin(88888, "umars")).unwrap();
+
+        let vec: Vec<Coin> = coins.into();
+
+        assert_eq!(
+            vec,
+            vec![coin(23456, "uastro"), coin(12345 + 88888, "umars"), coin(34567, "uosmo")],
+        );
+    }
+
+    #[test]
+    fn comparing() {
+        let coins1 = Coins::from(vec![
+            coin(23456, "uastro"),
+            coin(88888, "umars"),
+            coin(34567, "uosmo"),
+        ]);
+
+        let mut coins2 = coins1.clone();
+        assert_eq!(coins1, coins2);
+
+        coins2.add(coin(1, "umars")).unwrap();
+        assert_ne!(coins1, coins2);
     }
 }
