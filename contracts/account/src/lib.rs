@@ -17,7 +17,7 @@ pub enum QueryMsg {
     // nothing to query other than ownership
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
@@ -79,5 +79,102 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, Contract
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
+    }
+}
+
+// ----------------------------------- Tests -----------------------------------
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{
+        coins,
+        testing::{mock_dependencies, mock_env, mock_info},
+        BankMsg, SubMsgResult, SubMsgResponse,
+    };
+
+    use super::*;
+
+    #[test]
+    fn proper_execute() {
+        let mut deps = mock_dependencies();
+
+        let cosmos_msg: CosmosMsg = BankMsg::Send {
+            to_address: "larry".into(),
+            amount: coins(88888, "uastro"),
+        }
+        .into();
+
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("one-core", &[]),
+            Empty {},
+        )
+        .unwrap();
+
+        // not owner
+        {
+            let err = execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("larry", &[]),
+                cosmos_msg.clone(),
+            )
+            .unwrap_err();
+            assert_eq!(err, ContractError::Ownership(OwnershipError::NotOwner));
+        }
+
+        // owner
+        {
+            let res = execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("one-core", &[]),
+                cosmos_msg.clone(),
+            )
+            .unwrap();
+            assert_eq!(res.messages, vec![SubMsg::reply_on_success(cosmos_msg, REPLY_ID)]);
+        }
+    }
+
+    #[test]
+    fn proper_reply() {
+        let mut deps = mock_dependencies();
+
+        // no data
+        {
+            let res = reply(
+                deps.as_mut(),
+                mock_env(),
+                Reply {
+                    id: REPLY_ID,
+                    result: SubMsgResult::Ok(SubMsgResponse {
+                        events: vec![],
+                        data: None,
+                    }),
+                },
+            )
+            .unwrap();
+            assert_eq!(res.data, None);
+        }
+
+        // with data
+        {
+            let data = b"hello";
+
+            let res = reply(
+                deps.as_mut(),
+                mock_env(),
+                Reply {
+                    id: REPLY_ID,
+                    result: SubMsgResult::Ok(SubMsgResponse {
+                        events: vec![],
+                        data: Some(data.into()),
+                    }),
+                },
+            )
+            .unwrap();
+            assert_eq!(res.data, Some(data.into()));
+        }
     }
 }
