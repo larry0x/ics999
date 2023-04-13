@@ -79,6 +79,7 @@ pub fn act(
     };
 
     Ok(Response::new()
+        .add_attributes(attrs)
         .add_messages(msgs)
         .add_message(IbcMsg::SendPacket {
             channel_id: localhost.channel_id,
@@ -187,5 +188,152 @@ fn should_refund(ack: &Option<PacketAck>) -> bool {
 
         // packet acknowledged and succeeded -- no refund
         Some(PacketAck::Results(_)) => false,
+    }
+}
+
+// ----------------------------------- Tests -----------------------------------
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Uint128,
+    };
+
+    use super::*;
+
+    #[test]
+    fn asserting_funds() {
+        struct TestCase {
+            sending_funds: Vec<Coin>,
+            should_ok: bool,
+        }
+
+        // this contains the correct amount of coins expected to be sent
+        let actions = vec![
+            Action::Transfer {
+                denom: "uatom".into(),
+                amount: Uint128::new(10000),
+                recipient: None,
+            },
+            Action::Transfer {
+                denom: "uosmo".into(),
+                amount: Uint128::new(23456),
+                recipient: None,
+            },
+            Action::Transfer {
+                denom: "uatom".into(),
+                amount: Uint128::new(2345),
+                recipient: Some("pumpkin".into()),
+            },
+        ];
+
+        let testcases = [
+            // no fund sent
+            TestCase {
+                sending_funds: vec![],
+                should_ok: false,
+            },
+
+            // only 1 coin sent
+            TestCase {
+                sending_funds: vec![
+                    Coin {
+                        denom: "uatom".into(),
+                        amount: Uint128::new(12345),
+                    },
+                ],
+                should_ok: false,
+            },
+
+            // two coins sent but incorrect amount
+            TestCase {
+                sending_funds: vec![
+                    Coin {
+                        denom: "uatom".into(),
+                        amount: Uint128::new(12345),
+                    },
+                    Coin {
+                        denom: "uosmo".into(),
+                        amount: Uint128::new(12345),
+                    },
+                ],
+                should_ok: false,
+            },
+
+            // extra coins sent
+            TestCase {
+                sending_funds: vec![
+                    Coin {
+                        denom: "uatom".into(),
+                        amount: Uint128::new(12345),
+                    },
+                    Coin {
+                        denom: "uosmo".into(),
+                        amount: Uint128::new(23456),
+                    },
+                    Coin {
+                        denom: "ujuno".into(),
+                        amount: Uint128::new(34567),
+                    },
+                ],
+                should_ok: false,
+            },
+
+            // correct funds sent
+            TestCase {
+                sending_funds: vec![
+                    Coin {
+                        denom: "uatom".into(),
+                        amount: Uint128::new(12345),
+                    },
+                    Coin {
+                        denom: "uosmo".into(),
+                        amount: Uint128::new(23456),
+                    },
+                ],
+                should_ok: true,
+            },
+        ];
+
+        for testcase in testcases {
+            let mut deps = mock_dependencies();
+
+            let mock_connection_id = "connection-0";
+            let mock_active_channel_id = "channel-0";
+            let mock_default_timeout_secs = 300;
+
+            DEFAULT_TIMEOUT_SECS
+                .save(deps.as_mut().storage, &mock_default_timeout_secs)
+                .unwrap();
+            ACTIVE_CHANNELS
+                .save(deps.as_mut().storage, mock_connection_id, &mock_active_channel_id.into())
+                .unwrap();
+
+            let result = act(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("larry", &testcase.sending_funds),
+                mock_connection_id.into(),
+                actions.clone(),
+                None,
+            );
+
+            if testcase.should_ok {
+                assert!(result.is_ok());
+            } else {
+                assert!(matches!(result, Err(ContractError::FundsMismatch { .. })));
+            }
+        }
+    }
+
+    #[test]
+    fn sending_packet() {
+        // TODO
+    }
+
+    #[test]
+    fn receiving_packet() {
+        // TODO
     }
 }
