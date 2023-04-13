@@ -84,3 +84,76 @@ impl TraceItem {
         src == last_step
     }
 }
+
+// ----------------------------------- Tests -----------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deriving_hash() {
+        let trace = TraceItem {
+            base_denom: "ujuno".into(),
+            path: vec![
+                IbcEndpoint {
+                    port_id: "transfer".into(),
+                    channel_id: "channel-0".into(),
+                },
+                IbcEndpoint {
+                    port_id: "ics999".into(),
+                    channel_id: "channel-12345".into(),
+                },
+            ],
+        };
+        assert_eq!(trace.hash().to_hex(), "88a388f8b33bf58238ed9600360c471707db9eab");
+    }
+
+    #[test]
+    fn determining_source() {
+        let mock_src = IbcEndpoint {
+            port_id: "ics999".into(),
+            channel_id: "channel_0".into(),
+        };
+
+        // if path is empty, then sender is source
+        {
+            let trace = TraceItem {
+                base_denom: "uatom".into(),
+                path: vec![],
+            };
+            assert!(trace.sender_is_source(&mock_src));
+        }
+
+        // if path is not empty, but the very last step is not the receiver
+        // chain, then sender is source
+        {
+            let trace = TraceItem {
+                base_denom: "uatom".into(),
+                path: vec![
+                    IbcEndpoint {
+                        port_id: "test".into(),
+                        channel_id: "channel-1".into(),
+                    },
+                ],
+            };
+            assert!(trace.sender_is_source(&mock_src));
+        }
+
+        // if path is not empty, and the very last step is the receiver chain,
+        // then receiver is the source
+        {
+            let trace = TraceItem {
+                base_denom: "uatom".into(),
+                path: vec![
+                    IbcEndpoint {
+                        port_id: "test".into(),
+                        channel_id: "channel-1".into(),
+                    },
+                    mock_src.clone(),
+                ],
+            };
+            assert!(trace.receiver_is_source(&mock_src));
+        }
+    }
+}
