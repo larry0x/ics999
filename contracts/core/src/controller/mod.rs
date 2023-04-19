@@ -1,9 +1,10 @@
 use cosmwasm_std::{
-    from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
-    IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
+    from_slice, to_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
+    IbcBasicResponse, IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult,
+    Storage, SubMsg, WasmMsg,
 };
 
-use ics999::{Action, PacketAck, PacketData, SenderExecuteMsg, Trace};
+use ics999::{Action, PacketAck, PacketData, RelayerFee, SenderExecuteMsg, Trace};
 
 use crate::{
     error::ContractError,
@@ -20,9 +21,10 @@ pub fn act(
     connection_id: String,
     actions: Vec<Action>,
     timeout: Option<IbcTimeout>,
+    relayer_fee: RelayerFee,
 ) -> Result<Response, ContractError> {
     let received_funds = Coins::from(info.funds);
-    let mut sending_funds = Coins::empty();
+    let mut expect_funds = Coins::empty();
     let mut msgs = vec![];
     let mut attrs = vec![];
     let mut traces: Vec<Trace> = vec![];
@@ -52,20 +54,46 @@ pub fn act(
                 burn(&env.contract.address, coin.clone(), &mut msgs, &mut attrs);
             }
 
-            if !traces.iter().any(|trace| trace.denom == *denom) {
+            if !contains_denom(&traces, denom) {
                 traces.push(trace.into_full_trace(denom));
             }
 
-            sending_funds.add(coin)?;
+            expect_funds.add(coin)?;
         }
     }
 
+    // handle the destination relayer fee
+    //
+    // destination relayer refers to the account who submits the RecvPacket
+    // message on the destination chain.
+    //
+    // different from ICS-29, the relayer will receive the fee on the des chain.
+    // for this to work, the fee token's trace must be included in the packet.
+    if let Some(fee) = &relayer_fee.dest {
+        if !contains_denom(&traces, &fee.denom) {
+            let trace = trace_of(deps.storage, &fee.denom)?;
+            traces.push(trace.into_full_trace(&fee.denom));
+        }
+
+        expect_funds.add(fee.clone())?;
+    }
+
+    // handle the source relayer fee
+    //
+    // source relayer refers to the account who submits either the Ack or
+    // Timeout message on the source chain.
+    //
+    // the packet does not need to include the trace for this token.
+    if let Some(fee) = &relayer_fee.src {
+        expect_funds.add(fee.clone())?;
+    }
+
     // the total amount of coins the user has sent to the contract must equal
-    // the amount they want to transfer via IBC
-    if received_funds != sending_funds {
+    // the amount they want to transfer via IBC + fees to be paid
+    if received_funds != expect_funds {
         return Err(ContractError::FundsMismatch {
             actual: received_funds,
-            expected: sending_funds,
+            expected: expect_funds,
         });
     }
 
@@ -87,6 +115,7 @@ pub fn act(
                 sender: info.sender.into(),
                 actions,
                 traces,
+                relayer_fee,
             })?,
             timeout,
     }))
@@ -97,6 +126,7 @@ pub fn packet_lifecycle_complete(
     env: Env,
     packet: IbcPacket,
     ack_bin: Option<Binary>,
+    relayer: Addr,
 ) -> Result<IbcBasicResponse, ContractError> {
     let mut msgs = vec![];
     let mut attrs = vec![];
@@ -105,7 +135,7 @@ pub fn packet_lifecycle_complete(
     let packet_data: PacketData = from_slice(&packet.data)?;
 
     // deserialize the ack
-    let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
+    let ack = ack_bin.as_ref().map(|bin| from_slice(bin)).transpose()?;
 
     // process refund if the packet timed out or failed
     if should_refund(&ack) {
@@ -118,16 +148,45 @@ pub fn packet_lifecycle_complete(
                     amount: *amount,
                 };
 
-                // do the reverse of what was done in `act`
-                // if the tokens were escrowed, then release them
-                // if the tokens were burned, then mint them
-                if trace.sender_is_source(&packet.src) {
-                    release(coin, &packet_data.sender, &mut msgs, &mut attrs);
-                } else {
-                    mint(&env.contract.address, &packet_data.sender, coin,  &mut msgs, &mut attrs);
-                }
+                refund(
+                    &env.contract.address,
+                    &packet_data.sender,
+                    coin,
+                    &trace,
+                    &packet.src,
+                    &mut msgs,
+                    &mut attrs,
+                );
             }
         }
+    }
+
+    // if the packet timed out, refund the destination relayer fee
+    if let Some(fee) = &packet_data.relayer_fee.dest {
+        if ack_bin.is_none() {
+            refund(
+                &env.contract.address,
+                &packet_data.sender,
+                fee.clone(),
+                &trace_of(deps.storage, &fee.denom)?,
+                &packet.src,
+                &mut msgs,
+                &mut attrs,
+            );
+        }
+    }
+
+    // pay the source relayer fee
+    if let Some(fee) = &packet_data.relayer_fee.src {
+        refund(
+            &env.contract.address,
+            relayer,
+            fee.clone(),
+            &trace_of(deps.storage, &fee.denom)?,
+            &packet.src,
+            &mut msgs,
+            &mut attrs,
+        );
     }
 
     Ok(IbcBasicResponse::new()
@@ -171,6 +230,10 @@ fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
         .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
+fn contains_denom(traces: &[Trace], denom: &str) -> bool {
+    traces.iter().any(|trace| trace.denom == *denom)
+}
+
 fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
     Ok(IbcEndpoint {
         port_id: query_port(&deps.querier)?,
@@ -188,6 +251,22 @@ fn should_refund(ack: &Option<PacketAck>) -> bool {
 
         // packet acknowledged and succeeded -- no refund
         Some(PacketAck::Results(_)) => false,
+    }
+}
+
+fn refund(
+    contract: impl Into<String>,
+    sender: impl Into<String>,
+    coin: Coin,
+    trace: &TraceItem,
+    src: &IbcEndpoint,
+    msgs: &mut Vec<CosmosMsg>,
+    attrs: &mut Vec<Attribute>,
+) {
+    if trace.sender_is_source(src) {
+        release(coin, sender, msgs, attrs);
+    } else {
+        mint(contract, sender, coin,  msgs, attrs);
     }
 }
 
@@ -317,6 +396,10 @@ mod tests {
                 mock_connection_id.into(),
                 actions.clone(),
                 None,
+                RelayerFee {
+                    dest: None,
+                    src: None,
+                },
             );
 
             if testcase.should_ok {

@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{HexBinary, IbcEndpoint, IbcTimeout};
 
-use ics999::{Action, Trace};
+use ics999::{Action, RelayerFee, Trace};
 
 use crate::transfer::TraceItem;
 
@@ -27,8 +27,10 @@ pub enum ExecuteMsg {
         actions: Vec<Action>,
 
         /// How many seconds from how will the packet timeout
-        /// TODO: make this optional
         timeout: Option<IbcTimeout>,
+
+        /// Fees to be paid to relayers
+        relayer_fee: RelayerFee,
     },
 
     /// Execute a series of actions received in a packet.

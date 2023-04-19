@@ -1,7 +1,7 @@
 mod handler;
 
 use cosmwasm_std::{
-    from_slice, to_binary, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
+    from_slice, to_binary, Addr, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
     SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cw_utils::parse_execute_response_data;
@@ -18,12 +18,28 @@ pub fn packet_receive(
     deps: DepsMut,
     env: Env,
     packet: IbcPacket,
+    relayer: Addr,
 ) -> Result<IbcReceiveResponse, ContractError> {
     // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
 
     // deserialize packet data
-    let pd: PacketData = from_slice(&packet.data)?;
+    let PacketData {
+        sender,
+        mut actions,
+        traces,
+        relayer_fee,
+    } = from_slice(&packet.data)?;
+
+    // pay the destination relayer fee
+    // we do this simply by appending a Transfer action to the action queue
+    if let Some(fee) = relayer_fee.dest {
+        actions.push(Action::Transfer {
+            denom: fee.denom,
+            amount: fee.amount,
+            recipient: Some(relayer.into()),
+        });
+    }
 
     // we don't add an ack in this response
     // the ack will be added in after_all_actions reply (see below)
@@ -38,9 +54,9 @@ pub fn packet_receive(
                 msg: to_binary(&ExecuteMsg::Handle {
                     src: packet.src,
                     dest: packet.dest,
-                    controller: pd.sender,
-                    actions: pd.actions,
-                    traces: pd.traces,
+                    controller: sender,
+                    actions,
+                    traces,
                 })?,
                 funds: vec![],
             },

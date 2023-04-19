@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Empty, IbcEndpoint, IbcOrder, Uint128, CosmosMsg, QueryRequest};
+use cosmwasm_std::{Binary, Coin, Empty, IbcEndpoint, IbcOrder, Uint128, CosmosMsg, QueryRequest};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -21,6 +21,10 @@ pub struct PacketData {
     /// Receiver chain uses this to determine whether it's the sender or sink.
     /// Must include ALL tokens that are being transferred.
     pub traces: Vec<Trace>,
+
+    /// Fees to be paid to the relayers who submit the RecvPacket, Ack, or
+    /// Timeout messages
+    pub relayer_fee: RelayerFee,
 }
 
 /// ICS-999 packet acknowledgement
@@ -157,6 +161,19 @@ pub struct Trace {
     /// Note, this is different from ICS-20, where the latest chain is prefixed
     /// (instead of appended) to the beginning of the trace.
     pub path: Vec<IbcEndpoint>,
+}
+
+#[cw_serde]
+pub struct RelayerFee {
+    /// Fee to be paid to the relayer who submitted the MsgRecvPacket on the
+    /// destination chain.
+    /// None means no fee for the relayer.
+    pub dest: Option<Coin>,
+
+    /// Fee to be paid to the relayer who submitted to MsgAcknowledgement or
+    /// MsgTimeout on the source chain.
+    /// None means no fee for the relayer.
+    pub src: Option<Coin>,
 }
 
 /// If the sender contract wishes to receive a callback after the completion of

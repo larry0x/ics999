@@ -42,12 +42,13 @@ pub fn execute(
             connection_id,
             actions,
             timeout,
+            relayer_fee,
         } => {
             if actions.is_empty() {
                 return Err(ContractError::EmptyActionQueue);
             }
 
-            controller::act(deps, env, info, connection_id, actions, timeout)
+            controller::act(deps, env, info, connection_id, actions, timeout, relayer_fee)
         },
         ExecuteMsg::Handle {
             src,
@@ -152,7 +153,7 @@ pub fn ibc_packet_receive(
     env: Env,
     msg: IbcPacketReceiveMsg,
 ) -> Result<IbcReceiveResponse, ContractError> {
-    host::packet_receive(deps, env, msg.packet)
+    host::packet_receive(deps, env, msg.packet, msg.relayer)
 }
 
 #[entry_point]
@@ -161,7 +162,13 @@ pub fn ibc_packet_ack(
     env: Env,
     msg: IbcPacketAckMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    controller::packet_lifecycle_complete(deps, env, msg.original_packet, Some(msg.acknowledgement.data))
+    controller::packet_lifecycle_complete(
+        deps,
+        env,
+        msg.original_packet,
+        Some(msg.acknowledgement.data),
+        msg.relayer,
+    )
 }
 
 #[entry_point]
@@ -170,5 +177,5 @@ pub fn ibc_packet_timeout(
     env: Env,
     msg: IbcPacketTimeoutMsg,
 ) -> Result<IbcBasicResponse, ContractError> {
-    controller::packet_lifecycle_complete(deps, env, msg.packet, None)
+    controller::packet_lifecycle_complete(deps, env, msg.packet, None, msg.relayer)
 }

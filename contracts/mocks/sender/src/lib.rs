@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use cw_paginate::paginate_map;
 use cw_storage_plus::{Bound, Item, Map};
 
-use ics999::{Action, PacketAck};
+use ics999::{Action, PacketAck, RelayerFee};
 use one_core::utils::Coins;
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
@@ -133,6 +133,10 @@ pub fn execute(
                         connection_id,
                         actions,
                         timeout: None, // use the default timeout set by one-core
+                        relayer_fee: RelayerFee {
+                            dest: None,
+                            src: None,
+                        },
                     })?,
                     funds: funds.into(),
                 }))
