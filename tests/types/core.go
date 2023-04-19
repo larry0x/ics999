@@ -10,8 +10,9 @@ type CoreExecuteMsg struct {
 }
 
 type Act struct {
-	ConnectionID string   `json:"connection_id"`
-	Actions      []Action `json:"actions"`
+	ConnectionID string     `json:"connection_id"`
+	Actions      []Action   `json:"actions"`
+	RelayerFee   RelayerFee `json:"relayer_fee"`
 }
 
 type CoreQueryMsg struct {

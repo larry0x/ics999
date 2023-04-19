@@ -16,9 +16,10 @@ const (
 // -------------------------------- PacketData ---------------------------------
 
 type PacketData struct {
-	Sender  string   `json:"sender"`
-	Actions []Action `json:"actions"`
-	Traces  []Trace  `json:"traces"`
+	Sender     string     `json:"sender"`
+	Actions    []Action   `json:"actions"`
+	Traces     []Trace    `json:"traces"`
+	RelayerFee RelayerFee `json:"relayer_fee"`
 }
 
 type Action struct {
@@ -36,6 +37,11 @@ type TransferAction struct {
 
 type RegisterAccountAction struct {
 	Salt []byte `json:"salt,omitempty"`
+}
+
+type RelayerFee struct {
+	Dest *wasmvmtypes.Coin `json:"execute,omitempty"`
+	Src  *wasmvmtypes.Coin `json:"src,omitempty"`
 }
 
 // --------------------------------- PacketAck ---------------------------------
