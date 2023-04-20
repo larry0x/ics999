@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    from_slice, to_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
+    coin, from_slice, to_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
     IbcBasicResponse, IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult,
     Storage, SubMsg, WasmMsg,
 };
@@ -37,28 +37,16 @@ pub fn act(
     // also, compose the traces which will be included in the packet.
     for action in &actions {
         if let Action::Transfer { denom, amount, .. } = action {
-            let trace = trace_of(deps.storage, denom)?;
-
-            let coin = Coin {
-                denom: denom.clone(),
-                amount: *amount,
-            };
-
-            if trace.sender_is_source(&localhost) {
-                escrow(&coin, &mut attrs);
-            } else {
-                // note that we burn from the contract address instead of from
-                // info.sender
-                // this is because the token to be burned should have already
-                // been sent to the contract address along with the executeMsg
-                burn(&env.contract.address, coin.clone(), &mut msgs, &mut attrs);
-            }
-
-            if !contains_denom(&traces, denom) {
-                traces.push(trace.into_full_trace(denom));
-            }
-
-            expect_funds.add(coin)?;
+            handle_outgoing_coin(
+                &env.contract.address,
+                coin(amount.u128(), denom),
+                trace_of(deps.storage, denom)?,
+                &localhost,
+                &mut traces,
+                &mut expect_funds,
+                &mut msgs,
+                &mut attrs,
+            )?;
         }
     }
 
@@ -70,12 +58,16 @@ pub fn act(
     // different from ICS-29, the relayer will receive the fee on the des chain.
     // for this to work, the fee token's trace must be included in the packet.
     if let Some(fee) = &relayer_fee.dest {
-        if !contains_denom(&traces, &fee.denom) {
-            let trace = trace_of(deps.storage, &fee.denom)?;
-            traces.push(trace.into_full_trace(&fee.denom));
-        }
-
-        expect_funds.add(fee.clone())?;
+        handle_outgoing_coin(
+            &env.contract.address,
+            fee.clone(),
+            trace_of(deps.storage, &fee.denom)?,
+            &localhost,
+            &mut traces,
+            &mut expect_funds,
+            &mut msgs,
+            &mut attrs,
+        )?;
     }
 
     // handle the source relayer fee
@@ -148,11 +140,11 @@ pub fn packet_lifecycle_complete(
                     amount: *amount,
                 };
 
-                refund(
+                handle_incoming_coin(
                     &env.contract.address,
                     &packet_data.sender,
                     coin,
-                    &trace,
+                    trace,
                     &packet.src,
                     &mut msgs,
                     &mut attrs,
@@ -164,11 +156,11 @@ pub fn packet_lifecycle_complete(
     // if the packet timed out, refund the destination relayer fee
     if let Some(fee) = &packet_data.relayer_fee.dest {
         if ack_bin.is_none() {
-            refund(
+            handle_incoming_coin(
                 &env.contract.address,
                 &packet_data.sender,
                 fee.clone(),
-                &trace_of(deps.storage, &fee.denom)?,
+                trace_of(deps.storage, &fee.denom)?,
                 &packet.src,
                 &mut msgs,
                 &mut attrs,
@@ -178,11 +170,11 @@ pub fn packet_lifecycle_complete(
 
     // pay the source relayer fee
     if let Some(fee) = &packet_data.relayer_fee.src {
-        refund(
+        handle_incoming_coin(
             &env.contract.address,
             relayer,
             fee.clone(),
-            &trace_of(deps.storage, &fee.denom)?,
+            trace_of(deps.storage, &fee.denom)?,
             &packet.src,
             &mut msgs,
             &mut attrs,
@@ -254,11 +246,40 @@ fn should_refund(ack: &Option<PacketAck>) -> bool {
     }
 }
 
-fn refund(
+fn handle_outgoing_coin(
+    contract: impl Into<String>,
+    coin: Coin,
+    trace: TraceItem,
+    src: &IbcEndpoint,
+    traces: &mut Vec<Trace>,
+    expect_funds: &mut Coins,
+    msgs: &mut Vec<CosmosMsg>,
+    attrs: &mut Vec<Attribute>,
+) -> Result<(), ContractError> {
+    if trace.sender_is_source(src) {
+        escrow(&coin, attrs);
+    } else {
+        // note that we burn from the contract address instead of from
+        // info.sender
+        // this is because the token to be burned should have already
+        // been sent to the contract address along with the executeMsg
+        burn(contract, coin.clone(), msgs, attrs);
+    }
+
+    if !contains_denom(&traces, &coin.denom) {
+        traces.push(trace.into_full_trace(&coin.denom));
+    }
+
+    expect_funds.add(coin)?;
+
+    Ok(())
+}
+
+fn handle_incoming_coin(
     contract: impl Into<String>,
     sender: impl Into<String>,
     coin: Coin,
-    trace: &TraceItem,
+    trace: TraceItem,
     src: &IbcEndpoint,
     msgs: &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
