@@ -49,6 +49,7 @@ pub enum ExecuteMsg {
     Send {
         connection_id: String,
         actions: Vec<Action>,
+        relayer_fee: RelayerFee,
     },
 
     /// Respond to packet ack or timeout. Required by one-core.
@@ -108,12 +109,13 @@ pub fn execute(
         ExecuteMsg::Send {
             connection_id,
             actions,
+            relayer_fee,
         } => {
             let one_core_addr = ONE_CORE.load(deps.storage)?;
 
             // compute the total amount of coins to be sent to one-core
             // must equal to the sum of all the amounts in transfer actions
-            let funds = actions.iter().try_fold(
+            let mut funds = actions.iter().try_fold(
                 Coins::empty(),
                 |mut funds, action| -> Result<_, OverflowError> {
                     if let Action::Transfer { denom, amount, .. } = action {
@@ -122,6 +124,14 @@ pub fn execute(
                     Ok(funds)
                 },
             )?;
+
+            if let Some(fee) = &relayer_fee.dest {
+                funds.add(fee.clone())?;
+            }
+
+            if let Some(fee) = &relayer_fee.src {
+                funds.add(fee.clone())?;
+            }
 
             Ok(Response::new()
                 .add_attribute("method", "send")
@@ -133,10 +143,7 @@ pub fn execute(
                         connection_id,
                         actions,
                         timeout: None, // use the default timeout set by one-core
-                        relayer_fee: RelayerFee {
-                            dest: None,
-                            src: None,
-                        },
+                        relayer_fee,
                     })?,
                     funds: funds.into(),
                 }))

@@ -12,8 +12,9 @@ type SenderExecuteMsg struct {
 }
 
 type Send struct {
-	ConnectionID string   `json:"connection_id"`
-	Actions      []Action `json:"actions"`
+	ConnectionID string     `json:"connection_id"`
+	Actions      []Action   `json:"actions"`
+	RelayerFee   RelayerFee `json:"relayer_fee"`
 }
 
 type PacketCallback struct {

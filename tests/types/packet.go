@@ -40,7 +40,7 @@ type RegisterAccountAction struct {
 }
 
 type RelayerFee struct {
-	Dest *wasmvmtypes.Coin `json:"execute,omitempty"`
+	Dest *wasmvmtypes.Coin `json:"dest,omitempty"`
 	Src  *wasmvmtypes.Coin `json:"src,omitempty"`
 }
 
