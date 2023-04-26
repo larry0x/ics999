@@ -1,7 +1,6 @@
 use cosmwasm_std::{
-    coin, from_slice, to_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    IbcBasicResponse, IbcEndpoint, IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult,
-    Storage, SubMsg, WasmMsg,
+    coin, from_slice, to_binary, Addr, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint,
+    IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
 };
 
 use ics999::{Action, PacketAck, PacketData, RelayerFee, SenderExecuteMsg, Trace};
@@ -9,7 +8,7 @@ use ics999::{Action, PacketAck, PacketData, RelayerFee, SenderExecuteMsg, Trace}
 use crate::{
     error::ContractError,
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
-    transfer::{burn, escrow, mint, release, TraceItem},
+    transfer::{handle_incoming_coin, handle_outgoing_coin, TraceItem},
     utils::{query_port, Coins},
     AFTER_CALLBACK,
 };
@@ -133,18 +132,11 @@ pub fn packet_lifecycle_complete(
     if should_refund(&ack) {
         for action in &packet_data.actions {
             if let Action::Transfer { denom, amount, .. } = action {
-                let trace = trace_of(deps.storage, denom)?;
-
-                let coin = Coin {
-                    denom: denom.clone(),
-                    amount: *amount,
-                };
-
                 handle_incoming_coin(
                     &env.contract.address,
                     &packet_data.sender,
-                    coin,
-                    trace,
+                    coin(amount.u128(), denom),
+                    trace_of(deps.storage, denom)?,
                     &packet.src,
                     &mut msgs,
                     &mut attrs,
@@ -222,10 +214,6 @@ fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
         .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
-fn contains_denom(traces: &[Trace], denom: &str) -> bool {
-    traces.iter().any(|trace| trace.denom == *denom)
-}
-
 fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
     Ok(IbcEndpoint {
         port_id: query_port(&deps.querier)?,
@@ -246,58 +234,13 @@ fn should_refund(ack: &Option<PacketAck>) -> bool {
     }
 }
 
-fn handle_outgoing_coin(
-    contract: impl Into<String>,
-    coin: Coin,
-    trace: TraceItem,
-    src: &IbcEndpoint,
-    traces: &mut Vec<Trace>,
-    expect_funds: &mut Coins,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
-) -> Result<(), ContractError> {
-    if trace.sender_is_source(src) {
-        escrow(&coin, attrs);
-    } else {
-        // note that we burn from the contract address instead of from
-        // info.sender
-        // this is because the token to be burned should have already
-        // been sent to the contract address along with the executeMsg
-        burn(contract, coin.clone(), msgs, attrs);
-    }
-
-    if !contains_denom(&traces, &coin.denom) {
-        traces.push(trace.into_full_trace(&coin.denom));
-    }
-
-    expect_funds.add(coin)?;
-
-    Ok(())
-}
-
-fn handle_incoming_coin(
-    contract: impl Into<String>,
-    sender: impl Into<String>,
-    coin: Coin,
-    trace: TraceItem,
-    src: &IbcEndpoint,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
-) {
-    if trace.sender_is_source(src) {
-        release(coin, sender, msgs, attrs);
-    } else {
-        mint(contract, sender, coin,  msgs, attrs);
-    }
-}
-
 // ----------------------------------- Tests -----------------------------------
 
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Uint128,
+        Coin, Uint128,
     };
 
     use super::*;

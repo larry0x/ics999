@@ -9,7 +9,8 @@ use cw_utils::parse_execute_response_data;
 use ics999::{Action, PacketAck, PacketData, Trace};
 
 use crate::{
-    error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
+    error::ContractError, msg::ExecuteMsg, transfer::handle_incoming_coin,
+    utils::connection_of_channel, AFTER_ALL_ACTIONS,
 };
 
 use self::handler::Handler;
@@ -20,6 +21,9 @@ pub fn packet_receive(
     packet: IbcPacket,
     relayer: Addr,
 ) -> Result<IbcReceiveResponse, ContractError> {
+    let mut msgs = vec![];
+    let mut attrs = vec![];
+
     // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
 
@@ -32,13 +36,26 @@ pub fn packet_receive(
     } = from_slice(&packet.data)?;
 
     // pay the destination relayer fee
-    // we do this simply by appending a Transfer action to the action queue
+    // NOTE: the fee should be paid regardless the execution of actions are
+    // successful or not
     if let Some(fee) = relayer_fee.dest {
-        actions.push(Action::Transfer {
-            denom: fee.denom,
-            amount: fee.amount,
-            recipient: Some(relayer.into()),
-        });
+        let mut trace: TraceItem = traces
+            .iter()
+            .find(|trace| trace.denom == src_denom)
+            .ok_or(ContractError::TraceNotFound {
+                denom: src_denom,
+            })?
+            .into();
+
+        handle_incoming_coin(
+            &env.contract.address,
+            &relayer,
+            fee,
+            trace,
+            &packet.dest,
+            &mut msgs,
+            &mut attrs,
+        );
     }
 
     // we don't add an ack in this response
@@ -48,6 +65,8 @@ pub fn packet_receive(
         .add_attribute("connection_id", connection_id)
         .add_attribute("channel_id", &packet.dest.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
+        .add_attributes(attrs)
+        .add_messages(msgs)
         .add_submessage(SubMsg::reply_always(
             WasmMsg::Execute {
                 contract_addr: env.contract.address.into(),

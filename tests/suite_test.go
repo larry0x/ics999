@@ -47,7 +47,11 @@ func (suite *testSuite) SetupTest() {
 		sdk.NewCoin("uastro", sdk.NewInt(mockInitialBalance)),
 		sdk.NewCoin("umars", sdk.NewInt(mockInitialBalance)),
 	)
-	suite.chainB = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(1)))
+	suite.chainB = setupChain(
+		suite.T(),
+		suite.coordinator.GetChain(wasmibctesting.GetChainID(1)),
+		sdk.NewCoin("uusdc", sdk.NewInt(mockInitialBalance)),
+	)
 	suite.chainC = setupChain(suite.T(), suite.coordinator.GetChain(wasmibctesting.GetChainID(2)))
 
 	suite.pathAB = setupConnection(suite.coordinator, suite.chainA, suite.chainB)
@@ -72,13 +76,13 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain, coins ...sdk.Coin
 	// increase it. for tests to work.
 	// this will no longer be a problem with wasmd 0.31, which uses
 	// simtestutil.DefaultGenTxGas which is 10M.
-	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core.wasm")
+	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core-aarch64.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
-	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account.wasm")
+	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account-aarch64.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
-	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender.wasm")
+	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender-aarch64.wasm")
 	require.Equal(t, uint64(3), senderStoreRes.CodeID)
-	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter.wasm")
+	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter-aarch64.wasm")
 	require.Equal(t, uint64(4), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
@@ -208,11 +212,16 @@ func reversePath(path *wasmibctesting.Path) *wasmibctesting.Path {
 }
 
 func act(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
+	return actWithRelayerFee(src, path, actions, types.RelayerFee{})
+}
+
+func actWithRelayerFee(src *testChain, path *wasmibctesting.Path, actions []types.Action, relayerFee types.RelayerFee) (*channeltypes.Packet, *types.PacketAck, error) {
 	// compose the executeMsg
 	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
 		Send: &types.Send{
 			ConnectionID: path.EndpointA.ConnectionID,
 			Actions:      actions,
+			RelayerFee:   relayerFee,
 		},
 	})
 	if err != nil {

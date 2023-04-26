@@ -1,11 +1,64 @@
-use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper};
+use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, IbcEndpoint, QuerierWrapper};
 use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
 };
 
-use crate::error::ContractError;
+use ics999::Trace;
 
-pub fn mint(
+use crate::{error::ContractError, transfer::TraceItem, utils::Coins};
+
+/// This is called when a user sends funds to the contract to be transferred to
+/// another chain. ("Outgoing" in the sense that the coin is going out to
+/// another chain.)
+pub fn handle_outgoing_coin(
+    contract: impl Into<String>,
+    coin: Coin,
+    trace: TraceItem,
+    src: &IbcEndpoint,
+    traces: &mut Vec<Trace>,
+    expect_funds: &mut Coins,
+    msgs: &mut Vec<CosmosMsg>,
+    attrs: &mut Vec<Attribute>,
+) -> Result<(), ContractError> {
+    if trace.sender_is_source(src) {
+        escrow(&coin, attrs);
+    } else {
+        // note that we burn from the contract address instead of from
+        // info.sender
+        // this is because the token to be burned should have already
+        // been sent to the contract address along with the executeMsg
+        burn(contract, coin.clone(), msgs, attrs);
+    }
+
+    if !contains_denom(&traces, &coin.denom) {
+        traces.push(trace.into_full_trace(&coin.denom));
+    }
+
+    expect_funds.add(coin)?;
+
+    Ok(())
+}
+
+/// This is called when the contract receives funds from another chain and needs
+/// to transfer them to a user. ("Incoming" in the sense that the coin came in
+/// from another chain.)
+pub fn handle_incoming_coin(
+    contract: impl Into<String>,
+    recipient: impl Into<String>,
+    coin: Coin,
+    trace: TraceItem,
+    src: &IbcEndpoint,
+    msgs: &mut Vec<CosmosMsg>,
+    attrs: &mut Vec<Attribute>,
+) {
+    if trace.sender_is_source(src) {
+        release(coin, recipient, msgs, attrs);
+    } else {
+        mint(contract, recipient, coin,  msgs, attrs);
+    }
+}
+
+fn mint(
     sender: impl Into<String>,
     to: impl Into<String>,
     coin: Coin,
@@ -30,7 +83,7 @@ pub fn mint(
     );
 }
 
-pub fn burn(
+fn burn(
     sender: impl Into<String>,
     coin: Coin,
     msgs: &mut Vec<CosmosMsg>,
@@ -47,7 +100,7 @@ pub fn burn(
     );
 }
 
-pub fn release(
+fn release(
     coin: Coin,
     to: impl Into<String>,
     msgs: &mut Vec<CosmosMsg>,
@@ -64,9 +117,13 @@ pub fn release(
     );
 }
 
-pub fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
+fn escrow(coin: &Coin, attrs: &mut Vec<Attribute>) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "escrow"));
+}
+
+fn contains_denom(traces: &[Trace], denom: &str) -> bool {
+    traces.iter().any(|trace| trace.denom == *denom)
 }
 
 /// Combine a creator address and a subdenom into the tokenfactory full denom
