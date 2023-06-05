@@ -2,8 +2,7 @@
 
 A mockup contract to be used as the action sender in E2E tests.
 
-## Copyright
+## License
 
-ICS-999 © 2023 [larry0x](https://twitter.com/larry0x)
+(c) larry0x, 2023 - [All rights reserved](../../../LICENSE).
 
-ICS-999, including its specification and Rust implementation, is a proprietary software owned solely by [larry0x](https://twitter.com/larry0x). All rights reserved.

@@ -2,8 +2,7 @@
 
 A contract that receives token A and returns the same amount of token B, mimicking the behavior of a DEX. Used for testing purpose.
 
-## Copyright
+## License
 
-ICS-999 © 2023 [larry0x](https://twitter.com/larry0x)
+(c) larry0x, 2023 - [All rights reserved](../../../LICENSE).
 
-ICS-999, including its specification and Rust implementation, is a proprietary software owned solely by [larry0x](https://twitter.com/larry0x). All rights reserved.

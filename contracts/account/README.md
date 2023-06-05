@@ -2,8 +2,6 @@
 
 ICS-999 interchain account contract.
 
-## Copyright
+## License
 
-ICS-999 © 2023 [larry0x](https://twitter.com/larry0x)
-
-ICS-999, including its specification and Rust implementation, is a proprietary software owned solely by [larry0x](https://twitter.com/larry0x). All rights reserved.
+(c) larry0x, 2023 - [All rights reserved](../../LICENSE).
