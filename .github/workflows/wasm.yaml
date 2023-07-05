@@ -1,27 +1,25 @@
-name: CosmWasm
+name: Wasm
 
 on: push
 
 jobs:
-  build:
-    name: Build
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+
+      - name: Install Just
+        uses: extractions/setup-just@v1
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-          profile: minimal
+          targets: wasm32-unknown-unknown
 
-      - name: Build contracts
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --locked --lib --release --target wasm32-unknown-unknown
+      - name: Check for errors
+        run: just rust-check
         env:
           RUST_BACKTRACE: 1

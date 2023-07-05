@@ -1,11 +1,17 @@
-clippy:
+rust-check:
+  cargo check --target wasm32-unknown-unknown
+
+rust-lint:
   cargo +nightly clippy --tests
 
-test:
-  cargo test --locked --workspace --exclude mock-counter --exclude mock-dex --exclude mock-sender
+rust-test:
+  cargo test
 
-e2e:
-  go test ./tests/...
+go-lint:
+  go run github.com/golangci/golangci-lint/cmd/golangci-lint run --timeout=10m
+
+go-test:
+  go test ./...
 
 optimize:
   if [[ $(uname -m) =~ "arm64" ]]; then \
