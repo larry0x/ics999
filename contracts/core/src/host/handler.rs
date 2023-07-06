@@ -192,7 +192,8 @@ impl Handler {
                     // therefore we first mint to ourself, then transfer to the recipient
                     response
                         .add_message(tokenfactory::MsgMint {
-                            sender: env.contract.address.into(),
+                            sender: env.contract.address.clone().into(),
+                            mint_to_address: env.contract.address.into(),
                             amount: Some(into_proto_coin(coin.clone())),
                         })
                         .add_submessage(SubMsg::reply_on_success(

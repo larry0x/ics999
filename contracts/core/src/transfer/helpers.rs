@@ -6,7 +6,7 @@ use osmosis_std::types::{
 use crate::error::ContractError;
 
 pub fn mint(
-    sender: impl Into<String>,
+    sender: impl Into<String> + Clone,
     to: impl Into<String>,
     coin: Coin,
     msgs: &mut Vec<CosmosMsg>,
@@ -16,7 +16,8 @@ pub fn mint(
     attrs.push(attr("action", "mint"));
     msgs.push(
         tokenfactory::MsgMint {
-            sender: sender.into(),
+            sender: sender.clone().into(),
+            mint_to_address: sender.into(),
             amount: Some(into_proto_coin(coin.clone())),
         }
         .into(),
@@ -31,7 +32,7 @@ pub fn mint(
 }
 
 pub fn burn(
-    sender: impl Into<String>,
+    sender: impl Into<String> + Clone,
     coin: Coin,
     msgs: &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
@@ -40,7 +41,8 @@ pub fn burn(
     attrs.push(attr("action", "burn"));
     msgs.push(
         tokenfactory::MsgBurn {
-            sender: sender.into(),
+            sender: sender.clone().into(),
+            burn_from_address: sender.into(),
             amount: Some(into_proto_coin(coin)),
         }
         .into(),
