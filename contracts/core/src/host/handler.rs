@@ -368,7 +368,7 @@ impl Handler {
             self.results.push(ActionResult::Execute {
                 data,
             });
-        } else if let Action::RegisterAccount(..) = action {
+        } else if let Action::RegisterAccount(AccountRegistrationInfo::CustomFactory { address: _, msg: _ }) = action {
             // TODO: We could consider moving this into a separate reply_id
             // assert we have data
             let bin = data.ok_or(ContractError::FactoryResponseDataMissing)?;
