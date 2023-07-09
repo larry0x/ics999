@@ -4,10 +4,10 @@ use cosmwasm_std::{
     Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
 };
 use cw_storage_plus::Item;
-use cw_utils::parse_execute_response_data;
+use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
-use ics999::{Action, ActionResult, Trace};
+use ics999::{Action, ActionResult, Trace, AccountRegistrationInfo};
 
 use crate::{
     error::ContractError,
@@ -15,6 +15,7 @@ use crate::{
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     utils::default_salt,
     AFTER_ACTION,
+    AFTER_CUSTOM_FACTORY,
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");
@@ -236,55 +237,76 @@ impl Handler {
                 }
             },
 
-            Action::RegisterAccount {
-                salt,
-            } => {
-                // only one ICA per controller allowed
-                if self.host.is_some() {
-                    return Err(ContractError::AccountExists {
-                        channel_id: self.dest.channel_id,
-                        controller: self.controller,
-                    })?;
+            Action::RegisterAccount (
+                details,
+            ) => {
+                // match the type of registration flow
+                match details {
+                    AccountRegistrationInfo::RegisterAccount { salt } => {
+
+                        // only one ICA per controller allowed
+                        if self.host.is_some() {
+                            return Err(ContractError::AccountExists {
+                                channel_id: self.dest.channel_id,
+                                controller: self.controller,
+                            })?;
+                        }
+
+                        // if a salt is not provided, by default use:
+                        // sha256(channel_id_bytes | controller_addr_bytes)
+                        let salt = salt.unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
+
+                        // load the one-account contract's code ID and checksum, which is
+                        // used in Instantiate2 to determine the contract address
+                        let code_id = ACCOUNT_CODE_ID.load(deps.storage)?;
+                        let code_res = deps.querier.query_wasm_code_info(code_id)?;
+
+                        // predict the contract address
+                        let addr_raw = instantiate2_address(
+                            &code_res.checksum,
+                            &deps.api.addr_canonicalize(env.contract.address.as_str())?,
+                            &salt,
+                        )?;
+                        let addr = deps.api.addr_humanize(&addr_raw)?;
+
+                        ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
+
+                        self.results.push(ActionResult::RegisterAccount {
+                            address: addr.to_string(),
+                        });
+
+                        self.host = Some(addr);
+
+                        response
+                            .add_attribute("action", "register_account")
+                            .add_submessage(SubMsg::reply_on_success(
+                                WasmMsg::Instantiate2 {
+                                    admin: Some(env.contract.address.into()),
+                                    code_id,
+                                    label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
+                                    msg: to_binary(&Empty {})?,
+                                    funds: vec![],
+                                    salt,
+                                },
+                                AFTER_ACTION,
+                            ))
+                    },
+                    AccountRegistrationInfo::CustomFactory { address, msg } => {
+                        // A custom factory is used to create the ICA
+
+                        // We will get the ICA address from the response data.
+                        response
+                        .add_attribute("action", "register_account")
+                        .add_submessage(SubMsg::reply_on_success(
+                            WasmMsg::Execute { 
+                                contract_addr: address,
+                                msg,
+                                funds: vec![]
+                            },
+                            AFTER_CUSTOM_FACTORY,
+                        ))
+                    },
                 }
-
-                // if a salt is not provided, by default use:
-                // sha256(channel_id_bytes | controller_addr_bytes)
-                let salt = salt.unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
-
-                // load the one-account contract's code ID and checksum, which is
-                // used in Instantiate2 to determine the contract address
-                let code_id = ACCOUNT_CODE_ID.load(deps.storage)?;
-                let code_res = deps.querier.query_wasm_code_info(code_id)?;
-
-                // predict the contract address
-                let addr_raw = instantiate2_address(
-                    &code_res.checksum,
-                    &deps.api.addr_canonicalize(env.contract.address.as_str())?,
-                    &salt,
-                )?;
-                let addr = deps.api.addr_humanize(&addr_raw)?;
-
-                ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
-
-                self.results.push(ActionResult::RegisterAccount {
-                    address: addr.to_string(),
-                });
-
-                self.host = Some(addr);
-
-                response
-                    .add_attribute("action", "register_account")
-                    .add_submessage(SubMsg::reply_on_success(
-                        WasmMsg::Instantiate2 {
-                            admin: Some(env.contract.address.into()),
-                            code_id,
-                            label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
-                            msg: to_binary(&Empty {})?,
-                            funds: vec![],
-                            salt,
-                        },
-                        AFTER_ACTION,
-                    ))
             },
 
             Action::Execute(cosmos_msg) => {
@@ -330,7 +352,7 @@ impl Handler {
     }
 
     /// After an `Execute` action has been completed, parse the response
-    pub fn after_action(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
+    pub fn after_action(&mut self, deps: DepsMut, data: Option<Binary>) -> Result<(), ContractError> {
         // the action that was executed
         let action = self.action.as_ref().expect("missing active action");
 
@@ -346,6 +368,26 @@ impl Handler {
             self.results.push(ActionResult::Execute {
                 data,
             });
+        } else if let Action::RegisterAccount(..) = action {
+            // TODO: We could consider moving this into a separate reply_id
+            // assert we have data
+            let bin = data.ok_or(ContractError::FactoryResponseDataMissing)?;
+
+            // We parse the response data from the custom factory (which is expected to be an MsgInstantiateContractResponse)
+            // to get the ICA address.
+            let account_address_str = parse_instantiate_response_data(&bin)?
+                .contract_address;
+
+            let addr = deps.api.addr_validate(&account_address_str)?;
+
+            // save the address
+            ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
+
+            self.results.push(ActionResult::RegisterAccount {
+                address: addr.to_string(),
+            });
+
+            self.host = Some(addr);
         }
 
         Ok(())

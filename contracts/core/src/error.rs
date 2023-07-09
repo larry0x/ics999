@@ -80,4 +80,7 @@ pub enum ContractError {
         channel_id: String,
         controller: String,
     },
+
+    #[error("ICA factory account creation failed to provide instantiate data in its response")]
+    FactoryResponseDataMissing
 }

@@ -75,19 +75,7 @@ pub enum Action {
     },
 
     /// Register an interchain account
-    RegisterAccount {
-        /// The interchain account's address is chosen deterministically using
-        /// wasmd's Instantiate2 method.
-        ///
-        /// We need to prevent the attack where an attacker predicts the ICA's
-        /// address ahead of time, and create an account with the same address.
-        /// (this happened on Cosmos Hub which prevented Quicksilver from
-        /// registering their ICA)
-        ///
-        /// To achieve this, we let the user pick the salt. If not given, use
-        /// the controller address's UTF-8 bytes as the salt.
-        salt: Option<Binary>,
-    },
+    RegisterAccount(AccountRegistrationInfo),
 
     /// Instruct the interchain account to execute a message
     Execute(CosmosMsg),
@@ -95,6 +83,21 @@ pub enum Action {
     /// Perform a query
     Query(QueryRequest<Empty>),
 }
+
+#[cw_serde]
+pub enum AccountRegistrationInfo {
+    RegisterAccount {
+        salt: Option<Binary>,
+    },
+    /// Factory to call for account creation.
+    CustomFactory {
+        /// Address of the factory contract.
+        address: String,
+        /// Message for the factory.
+        msg: Binary,
+    },
+}
+
 
 #[cw_serde]
 pub enum ActionResult {
