@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, Empty, IbcEndpoint, IbcOrder, Uint128, CosmosMsg, QueryRequest};
+use cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, Uint128};
 
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
@@ -89,11 +89,17 @@ pub enum Action {
         salt: Option<Binary>,
     },
 
-    /// Instruct the interchain account to execute a message
-    Execute(CosmosMsg),
+    /// Call the ICA contract's execute entry point.
+    ///
+    /// The message is to be in raw binary format. The ICA contract is
+    /// responsible for implementing logics to interpret and handle this message.
+    Execute(Binary),
 
-    /// Perform a query
-    Query(QueryRequest<Empty>),
+    /// Call the ICA contract's query entry point.
+    ///
+    /// The message is to be in raw binary format. The ICA contract is
+    /// responsible for implementing logics to interpret and handle this message.
+    Query(Binary),
 }
 
 #[cw_serde]

@@ -1,21 +1,25 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg,
+    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
+    QueryRequest, Reply, Response, StdError, SubMsg, SystemError,
 };
-use cw_ownable::{cw_ownable_query, OwnershipError};
+use cw_ownable::OwnershipError;
 
 pub const CONTRACT_NAME: &str = "crates.io:one-account";
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const REPLY_ID: u64 = 69420;
 
-#[cw_ownable_query]
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum QueryMsg {
-    // nothing to query other than ownership
-}
+// this contract does not need any parameter for instantiation
+// it will store the deployer as the owner
+pub type InstantiateMsg = Empty;
+// this contract takes a CosmosMsg and simply executes it
+// note: only the owner can execute
+// note: no support for custom bindings. use StargateMsg or fork this contract
+pub type ExecuteMsg = CosmosMsg<Empty>;
+// this contract takes a QueryRequest, performs the query, and directly returns
+// the binary response without attempting to deserializing it
+// note: no support for custom bindings. use StargateQuery or fork this contract
+pub type QueryMsg = QueryRequest<Empty>;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ContractError {
@@ -24,6 +28,12 @@ pub enum ContractError {
 
     #[error(transparent)]
     Ownership(#[from] OwnershipError),
+
+    #[error("query failed due to system error: {0}")]
+    QuerySystem(#[from] SystemError),
+
+    #[error("query failed due to contract error: {0}")]
+    QueryContract(String),
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -46,7 +56,7 @@ pub fn execute(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    msg: CosmosMsg,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
@@ -76,10 +86,12 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, Contract
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
-    }
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+    deps.querier
+        .raw_query(&to_binary(&msg)?)
+        .into_result()?
+        .into_result()
+        .map_err(ContractError::QueryContract)
 }
 
 // ----------------------------------- Tests -----------------------------------

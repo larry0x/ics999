@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, DepsMut, Empty,
-    Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, WasmQuery,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
@@ -287,7 +287,7 @@ impl Handler {
                     ))
             },
 
-            Action::Execute(cosmos_msg) => {
+            Action::Execute(msg) => {
                 let Some(addr) = &self.host else {
                     return Err(ContractError::AccountNotFound {
                         channel_id: self.dest.channel_id,
@@ -300,14 +300,26 @@ impl Handler {
                     .add_submessage(SubMsg::reply_on_success(
                         WasmMsg::Execute {
                             contract_addr: addr.into(),
-                            msg: to_binary(&cosmos_msg)?,
+                            msg,
                             funds: vec![],
                         },
                         AFTER_ACTION,
                     ))
             },
 
-            Action::Query(query_req) => {
+            Action::Query(msg) => {
+                let Some(addr) = &self.host else {
+                    return Err(ContractError::AccountNotFound {
+                        channel_id: self.dest.channel_id,
+                        controller: self.controller,
+                    });
+                };
+
+                let query_req = WasmQuery::Smart {
+                    contract_addr: addr.into(),
+                    msg,
+                };
+
                 let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
 
                 let SystemResult::Ok(ContractResult::Ok(query_res_bin)) = query_res else {
