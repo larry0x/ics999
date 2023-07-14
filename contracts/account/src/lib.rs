@@ -36,6 +36,12 @@ pub enum ContractError {
 
     #[error("query failed due to contract error: {0}")]
     QueryContract(String),
+
+    #[error("submessage failed to execute: {0}")]
+    SubMsgFailed(String),
+
+    #[error("unknown reply id: {0}")]
+    UnknownReplyId(u64),
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -76,14 +82,17 @@ pub fn reply(_deps: DepsMut, _: Env, msg: Reply) -> Result<Response, ContractErr
         // MsgExecuteContractResponse, etc. We don't decode them here. The ICA
         // controller is responsible for decoding it.
         REPLY_ID => {
-            // reply on success so unwrap can't fail
-            let Some(data) = msg.result.unwrap().data else {
-                return Ok(Response::new());
-            };
+            let mut res = Response::new();
 
-            Ok(Response::new().set_data(data))
+            // this submsg is reply on success, so we expect it to succeed
+            let submsg_res = msg.result.into_result().map_err(ContractError::SubMsgFailed)?;
+            if let Some(data) = submsg_res.data {
+                res = res.set_data(data);
+            }
+
+            Ok(res)
         },
-        id => unreachable!("unknown reply ID: `{id}`"),
+        id => Err(ContractError::UnknownReplyId(id)),
     }
 }
 
