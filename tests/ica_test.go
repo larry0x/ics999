@@ -46,17 +46,10 @@ func (suite *testSuite) TestRegisterAccount() {
 		accountInfo.Label,
 	)
 
-	// query the account contract ownership
-	ownershipRes := types.OwnershipResponse{}
-	err = suite.chainB.SmartQuery(
-		accountAddr.String(),
-		types.OwnableQueryMsg{
-			Ownership: &types.OwnershipQuery{},
-		},
-		&ownershipRes,
-	)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), suite.chainB.coreAddr.String(), ownershipRes.Owner)
+	// TODO: assert the ICA contract's ownership
+	// previously we used a smart query, however now we need a raw query but the
+	// testing utility doesn't provide this capability. we should make a PR to
+	// wasmd on this
 
 	// attempt to register account again, should fail
 	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
@@ -77,7 +70,7 @@ func (suite *testSuite) TestExecuteWasm() {
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -85,7 +78,7 @@ func (suite *testSuite) TestExecuteWasm() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)
@@ -103,7 +96,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	// test 2 - increment the number more times in a single packet
 	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -111,10 +104,10 @@ func (suite *testSuite) TestExecuteWasm() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -122,10 +115,10 @@ func (suite *testSuite) TestExecuteWasm() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -133,7 +126,7 @@ func (suite *testSuite) TestExecuteWasm() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)
@@ -146,32 +139,33 @@ func (suite *testSuite) TestExecuteWasm() {
 func (suite *testSuite) TestQuery() {
 	// we query the number (both raw and smart), increase the counter once, then
 	// query again
+	// note: we require an ICA to be registered even for queries
 	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			Query: &wasmvmtypes.QueryRequest{
+			RegisterAccount: &types.RegisterAccountAction{},
+		},
+		{
+			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
 					Raw: &wasmvmtypes.RawQuery{
 						ContractAddr: suite.chainB.counterAddr.String(),
 						Key:          []byte("number"),
 					},
 				},
-			},
+			}),
 		},
 		{
-			Query: &wasmvmtypes.QueryRequest{
+			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
 					Smart: &wasmvmtypes.SmartQuery{
 						ContractAddr: suite.chainB.counterAddr.String(),
 						Msg:          []byte(`{"number":{}}`),
 					},
 				},
-			},
+			}),
 		},
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
-		},
-		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -179,32 +173,33 @@ func (suite *testSuite) TestQuery() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 		{
-			Query: &wasmvmtypes.QueryRequest{
+			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
 					Raw: &wasmvmtypes.RawQuery{
 						ContractAddr: suite.chainB.counterAddr.String(),
 						Key:          []byte("number"),
 					},
 				},
-			},
+			}),
 		},
 		{
-			Query: &wasmvmtypes.QueryRequest{
+			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
 					Smart: &wasmvmtypes.SmartQuery{
 						ContractAddr: suite.chainB.counterAddr.String(),
 						Msg:          []byte(`{"number":{}}`),
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), []byte("0"), ack.Results[0].Query.Response)
-	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Results[1].Query.Response)
+	fmt.Println(string(mustMarshalJSON(suite.T(), ack)))
+	require.Equal(suite.T(), []byte("0"), ack.Results[1].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Results[2].Query.Response)
 	require.Equal(suite.T(), []byte("1"), ack.Results[4].Query.Response)
 	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Results[5].Query.Response)
 }
@@ -216,7 +211,7 @@ func (suite *testSuite) TestCallback() {
 			RegisterAccount: &types.RegisterAccountAction{},
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -224,17 +219,17 @@ func (suite *testSuite) TestCallback() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 		{
-			Query: &wasmvmtypes.QueryRequest{
+			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
 				Wasm: &wasmvmtypes.WasmQuery{
 					Smart: &wasmvmtypes.SmartQuery{
 						ContractAddr: suite.chainB.counterAddr.String(),
 						Msg:          []byte(`{"number":{}}`),
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)
@@ -247,7 +242,7 @@ func (suite *testSuite) TestCallback() {
 	// do the same thing but with an intentionally failed packet
 	packet2, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.counterAddr.String(),
@@ -255,7 +250,7 @@ func (suite *testSuite) TestCallback() {
 						Funds:        wasmvmtypes.Coins{},
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)

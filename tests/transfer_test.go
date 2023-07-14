@@ -273,7 +273,7 @@ func (suite *testSuite) TestSwap() {
 			},
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: dexAddr.String(),
@@ -281,10 +281,10 @@ func (suite *testSuite) TestSwap() {
 						Funds:        []wasmvmtypes.Coin{wasmvmtypes.NewCoin(uint64(amountAB), astroB)},
 					},
 				},
-			},
+			}),
 		},
 		{
-			Execute: &wasmvmtypes.CosmosMsg{
+			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
 					Execute: &wasmvmtypes.ExecuteMsg{
 						ContractAddr: suite.chainB.coreAddr.String(),
@@ -292,7 +292,7 @@ func (suite *testSuite) TestSwap() {
 						Funds:        []wasmvmtypes.Coin{wasmvmtypes.NewCoin(uint64(amountAB), "uusdc")},
 					},
 				},
-			},
+			}),
 		},
 	})
 	require.NoError(suite.T(), err)

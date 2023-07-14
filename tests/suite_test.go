@@ -358,6 +358,13 @@ func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, seque
 	require.Equal(t, expOutcome, outcomeRes.Outcome)
 }
 
+func mustMarshalJSON(t *testing.T, i interface{}) []byte {
+	bz, err := json.Marshal(i)
+	require.NoError(t, err)
+
+	return bz
+}
+
 func Test(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
