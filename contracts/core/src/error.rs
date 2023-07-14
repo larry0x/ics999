@@ -45,19 +45,19 @@ pub enum Error {
 
     #[error("incorrect amount of funds sent: expecting `{expected}`, found `{actual}`")]
     FundsMismatch {
-        actual: Coins,
+        actual:   Coins,
         expected: Coins,
     },
 
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {
-        actual: IbcOrder,
+        actual:   IbcOrder,
         expected: IbcOrder,
     },
 
     #[error("incorrect IBC channel version: expecting `{expected}`, found `{actual}`")]
     IncorrectVersion {
-        actual: String,
+        actual:   String,
         expected: String,
     },
 
@@ -68,7 +68,7 @@ pub enum Error {
 
     #[error("no channel found at port `{port_id}` with channel id `{channel_id}`")]
     ChannelNotFound {
-        port_id: String,
+        port_id:    String,
         channel_id: String,
     },
 

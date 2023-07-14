@@ -14,12 +14,12 @@ use crate::{
 };
 
 pub fn act(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    deps:          DepsMut,
+    env:           Env,
+    info:          MessageInfo,
     connection_id: String,
-    actions: Vec<Action>,
-    timeout: Option<IbcTimeout>,
+    actions:       Vec<Action>,
+    timeout:       Option<IbcTimeout>,
 ) -> Result<Response> {
     let received_funds = Coins::from(info.funds);
     let mut sending_funds = Coins::empty();
@@ -38,7 +38,7 @@ pub fn act(
             let trace = trace_of(deps.storage, denom)?;
 
             let coin = Coin {
-                denom: denom.clone(),
+                denom:  denom.clone(),
                 amount: *amount,
             };
 
@@ -64,7 +64,7 @@ pub fn act(
     // the amount they want to transfer via IBC
     if received_funds != sending_funds {
         return Err(Error::FundsMismatch {
-            actual: received_funds,
+            actual:   received_funds,
             expected: sending_funds,
         });
     }
@@ -93,9 +93,9 @@ pub fn act(
 }
 
 pub fn packet_lifecycle_complete(
-    deps: DepsMut,
-    env: Env,
-    packet: IbcPacket,
+    deps:    DepsMut,
+    env:     Env,
+    packet:  IbcPacket,
     ack_bin: Option<Binary>,
 ) -> Result<IbcBasicResponse> {
     let mut msgs = vec![];
@@ -114,7 +114,7 @@ pub fn packet_lifecycle_complete(
                 let trace = trace_of(deps.storage, denom)?;
 
                 let coin = Coin {
-                    denom: denom.clone(),
+                    denom:  denom.clone(),
                     amount: *amount,
                 };
 
@@ -143,7 +143,7 @@ pub fn packet_lifecycle_complete(
                 contract_addr: packet_data.sender,
                 msg: to_binary(&SenderExecuteMsg::PacketCallback {
                     channel_id: packet.src.channel_id,
-                    sequence: packet.sequence,
+                    sequence:   packet.sequence,
                     ack,
                 })?,
                 funds: vec![],
@@ -212,18 +212,18 @@ mod tests {
         // this contains the correct amount of coins expected to be sent
         let actions = vec![
             Action::Transfer {
-                denom: "uatom".into(),
-                amount: Uint128::new(10000),
+                denom:     "uatom".into(),
+                amount:    Uint128::new(10000),
                 recipient: None,
             },
             Action::Transfer {
-                denom: "uosmo".into(),
-                amount: Uint128::new(23456),
+                denom:     "uosmo".into(),
+                amount:    Uint128::new(23456),
                 recipient: None,
             },
             Action::Transfer {
-                denom: "uatom".into(),
-                amount: Uint128::new(2345),
+                denom:     "uatom".into(),
+                amount:    Uint128::new(2345),
                 recipient: Some("pumpkin".into()),
             },
         ];
@@ -232,14 +232,14 @@ mod tests {
             // no fund sent
             TestCase {
                 sending_funds: vec![],
-                should_ok: false,
+                should_ok:     false,
             },
 
             // only 1 coin sent
             TestCase {
                 sending_funds: vec![
                     Coin {
-                        denom: "uatom".into(),
+                        denom:  "uatom".into(),
                         amount: Uint128::new(12345),
                     },
                 ],
@@ -250,11 +250,11 @@ mod tests {
             TestCase {
                 sending_funds: vec![
                     Coin {
-                        denom: "uatom".into(),
+                        denom:  "uatom".into(),
                         amount: Uint128::new(12345),
                     },
                     Coin {
-                        denom: "uosmo".into(),
+                        denom:  "uosmo".into(),
                         amount: Uint128::new(12345),
                     },
                 ],
@@ -265,15 +265,15 @@ mod tests {
             TestCase {
                 sending_funds: vec![
                     Coin {
-                        denom: "uatom".into(),
+                        denom:  "uatom".into(),
                         amount: Uint128::new(12345),
                     },
                     Coin {
-                        denom: "uosmo".into(),
+                        denom:  "uosmo".into(),
                         amount: Uint128::new(23456),
                     },
                     Coin {
-                        denom: "ujuno".into(),
+                        denom:  "ujuno".into(),
                         amount: Uint128::new(34567),
                     },
                 ],
@@ -284,11 +284,11 @@ mod tests {
             TestCase {
                 sending_funds: vec![
                     Coin {
-                        denom: "uatom".into(),
+                        denom:  "uatom".into(),
                         amount: Uint128::new(12345),
                     },
                     Coin {
-                        denom: "uosmo".into(),
+                        denom:  "uosmo".into(),
                         amount: Uint128::new(23456),
                     },
                 ],

@@ -7,10 +7,10 @@ use crate::error::{Error, Result};
 
 pub fn mint(
     sender: impl Into<String> + Clone,
-    to: impl Into<String>,
-    coin: Coin,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
+    to:     impl Into<String>,
+    coin:   Coin,
+    msgs:   &mut Vec<CosmosMsg>,
+    attrs:  &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "mint"));
@@ -33,9 +33,9 @@ pub fn mint(
 
 pub fn burn(
     sender: impl Into<String> + Clone,
-    coin: Coin,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
+    coin:   Coin,
+    msgs:   &mut Vec<CosmosMsg>,
+    attrs:  &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "burn"));
@@ -50,9 +50,9 @@ pub fn burn(
 }
 
 pub fn release(
-    coin: Coin,
-    to: impl Into<String>,
-    msgs: &mut Vec<CosmosMsg>,
+    coin:  Coin,
+    to:    impl Into<String>,
+    msgs:  &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));

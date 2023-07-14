@@ -41,11 +41,11 @@ pub enum ExecuteMsg {
     /// and no state changes from any action (even those that succeeded) will be
     /// committed.
     Handle {
-        src: IbcEndpoint,
-        dest: IbcEndpoint,
+        src:        IbcEndpoint,
+        dest:       IbcEndpoint,
         controller: String,
-        actions: Vec<Action>,
-        traces: Vec<Trace>,
+        actions:    Vec<Action>,
+        traces:     Vec<Trace>,
     },
 }
 
@@ -72,7 +72,7 @@ pub enum QueryMsg {
     #[returns(Vec<Trace>)]
     DenomTraces {
         start_after: Option<String>,
-        limit: Option<u32>,
+        limit:       Option<u32>,
     },
 
     /// Interchain account controlled by a specific controller
@@ -86,7 +86,7 @@ pub enum QueryMsg {
     #[returns(Vec<AccountResponse>)]
     Accounts {
         start_after: Option<(String, String)>,
-        limit: Option<u32>,
+        limit:       Option<u32>,
     },
 
     /// Active channel associated with a connection
@@ -99,13 +99,13 @@ pub enum QueryMsg {
     #[returns(Vec<ActiveChannelResponse>)]
     ActiveChannels {
         start_after: Option<String>,
-        limit: Option<u32>,
+        limit:       Option<u32>,
     },
 }
 
 #[cw_serde]
 pub struct ConfigResponse {
-    pub account_code_id: u64,
+    pub account_code_id:      u64,
     pub default_timeout_secs: u64,
 }
 
@@ -118,11 +118,11 @@ pub struct DenomHashResponse {
 pub struct AccountResponse {
     pub channel_id: String,
     pub controller: String,
-    pub address: String,
+    pub address:    String,
 }
 
 #[cw_serde]
 pub struct ActiveChannelResponse {
     pub connection_id: String,
-    pub channel_id: String,
+    pub channel_id:    String,
 }

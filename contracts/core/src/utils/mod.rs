@@ -24,17 +24,17 @@ pub fn default_salt(channel_id: &str, controller: &str) -> Binary {
 
 /// Query the connection ID associated with the specified channel
 pub fn connection_of_channel(
-    querier: &QuerierWrapper,
+    querier:    &QuerierWrapper,
     channel_id: &str,
 ) -> Result<String> {
     let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
         channel_id: channel_id.into(),
-        port_id: None, // default to the contract's own port
+        port_id:    None, // default to the contract's own port
     }))?;
 
     let Some(chan) = chan_res.channel else {
         return Err(Error::ChannelNotFound {
-            port_id: query_port(querier)?,
+            port_id:    query_port(querier)?,
             channel_id: channel_id.into(),
         });
     };

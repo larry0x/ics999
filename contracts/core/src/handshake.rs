@@ -27,8 +27,8 @@ pub fn open_init(
 }
 
 pub fn open_try(
-    deps: DepsMut,
-    channel: IbcChannel,
+    deps:                 DepsMut,
+    channel:              IbcChannel,
     counterparty_version: String,
 ) -> Result<IbcChannelOpenResponse> {
     validate_order_and_version(&channel.order, &channel.version, Some(&counterparty_version))?;
@@ -39,8 +39,8 @@ pub fn open_try(
 }
 
 pub fn open_connect(
-    deps: DepsMut,
-    channel: &IbcChannel,
+    deps:                 DepsMut,
+    channel:              &IbcChannel,
     counterparty_version: Option<&str>,
 ) -> Result<IbcBasicResponse> {
     validate_order_and_version(&channel.order, &channel.version, counterparty_version)?;
@@ -55,20 +55,20 @@ pub fn open_connect(
 }
 
 fn validate_order_and_version(
-    order: &IbcOrder,
-    version: &str,
+    order:                &IbcOrder,
+    version:              &str,
     counterparty_version: Option<&str>,
 ) -> Result<()> {
     if *order != ics999::ORDER {
         return Err(Error::IncorrectOrder {
-            actual: order.clone(),
+            actual:   order.clone(),
             expected: ics999::ORDER,
         });
     }
 
     if version != ics999::VERSION {
         return Err(Error::IncorrectVersion {
-            actual: version.into(),
+            actual:   version.into(),
             expected: ics999::VERSION.into(),
         });
     }
@@ -76,7 +76,7 @@ fn validate_order_and_version(
     if let Some(cp_version) = counterparty_version {
         if cp_version != ics999::VERSION {
             return Err(Error::IncorrectVersion {
-                actual: cp_version.into(),
+                actual:   cp_version.into(),
                 expected: ics999::VERSION.into(),
             });
         }
@@ -133,7 +133,7 @@ mod tests {
 
     fn mock_ibc_endpoint() -> IbcEndpoint {
         IbcEndpoint {
-            port_id: format!("wasm.{MOCK_CONTRACT_ADDR}"),
+            port_id:    format!("wasm.{MOCK_CONTRACT_ADDR}"),
             channel_id: "channel-0".into(),
         }
     }

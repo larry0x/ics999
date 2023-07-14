@@ -30,8 +30,8 @@ impl fmt::Display for PacketOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             PacketOutcome::Successful => "successful",
-            PacketOutcome::Failed => "failed",
-            PacketOutcome::TimedOut => "timed_out",
+            PacketOutcome::Failed     => "failed",
+            PacketOutcome::TimedOut   => "timed_out",
         };
         write!(f, "{s}")
     }
@@ -48,14 +48,14 @@ pub enum ExecuteMsg {
     /// Send some actions to a remote chain via one-core
     Send {
         connection_id: String,
-        actions: Vec<Action>,
+        actions:       Vec<Action>,
     },
 
     /// Respond to packet ack or timeout. Required by one-core.
     PacketCallback {
         channel_id: String,
-        sequence: u64,
-        ack: Option<PacketAck>,
+        sequence:   u64,
+        ack:        Option<PacketAck>,
     },
 }
 
@@ -66,29 +66,29 @@ pub enum QueryMsg {
     #[returns(OutcomeResponse)]
     Outcome {
         channel_id: String,
-        sequence: u64,
+        sequence:   u64,
     },
 
     /// Iterate all stored packet acknowledgements
     #[returns(Vec<OutcomeResponse>)]
     Outcomes {
         start_after: Option<(String, u64)>,
-        limit: Option<u32>,
+        limit:       Option<u32>,
     },
 }
 
 #[cw_serde]
 pub struct OutcomeResponse {
     channel_id: String,
-    sequence: u64,
-    outcome: PacketOutcome,
+    sequence:   u64,
+    outcome:    PacketOutcome,
 }
 
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
+    _: Env,
+    _: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let one_core_addr = deps.api.addr_validate(&msg.one_core)?;
@@ -98,12 +98,7 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn execute(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Send {
             connection_id,
@@ -146,7 +141,7 @@ pub fn execute(
             let outcome = match ack_opt {
                 Some(ack) => match ack {
                     PacketAck::Results(_) => PacketOutcome::Successful,
-                    PacketAck::Error(_) => PacketOutcome::Failed,
+                    PacketAck::Error(_)   => PacketOutcome::Failed,
                 },
                 None => PacketOutcome::TimedOut,
             };
@@ -163,7 +158,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Outcome {
             channel_id,
@@ -184,6 +179,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let start = start_after
                 .as_ref()
                 .map(|(chan_id, seq)| Bound::exclusive((chan_id.as_str(), *seq)));
+
             let res = paginate_map(
                 &OUTCOMES,
                 deps.storage,
@@ -197,6 +193,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     })
                 },
             )?;
+
             to_binary(&res)
         },
     }

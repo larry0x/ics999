@@ -16,12 +16,7 @@ use crate::{
 };
 
 #[entry_point]
-pub fn instantiate(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    msg: InstantiateMsg,
-) -> Result<Response> {
+pub fn instantiate(deps: DepsMut, _: Env, _: MessageInfo, msg: InstantiateMsg) -> Result<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
@@ -31,12 +26,7 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> Result<Response> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response> {
     match msg {
         ExecuteMsg::Act {
             connection_id,
@@ -66,11 +56,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response> {
     match msg.id {
         AFTER_ACTION => host::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => host::after_all_actions(msg.result),
@@ -114,8 +100,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 #[entry_point]
 pub fn ibc_channel_open(
     deps: DepsMut,
-    _env: Env,
-    msg: IbcChannelOpenMsg,
+    _:    Env,
+    msg:  IbcChannelOpenMsg,
 ) -> Result<IbcChannelOpenResponse> {
     match msg {
         IbcChannelOpenMsg::OpenInit {
@@ -131,44 +117,41 @@ pub fn ibc_channel_open(
 #[entry_point]
 pub fn ibc_channel_connect(
     deps: DepsMut,
-    _env: Env,
-    msg: IbcChannelConnectMsg,
+    _:    Env,
+    msg:  IbcChannelConnectMsg,
 ) -> Result<IbcBasicResponse> {
     handshake::open_connect(deps, msg.channel(), msg.counterparty_version())
 }
 
 #[entry_point]
-pub fn ibc_channel_close(
-    _deps: DepsMut,
-    _env: Env,
-    msg: IbcChannelCloseMsg,
-) -> Result<IbcBasicResponse> {
+pub fn ibc_channel_close(_: DepsMut, _: Env, msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse> {
     handshake::close(msg)
 }
 
 #[entry_point]
 pub fn ibc_packet_receive(
     deps: DepsMut,
-    env: Env,
-    msg: IbcPacketReceiveMsg,
+    env:  Env,
+    msg:  IbcPacketReceiveMsg,
 ) -> Result<IbcReceiveResponse> {
     host::packet_receive(deps, env, msg.packet)
 }
 
 #[entry_point]
-pub fn ibc_packet_ack(
-    deps: DepsMut,
-    env: Env,
-    msg: IbcPacketAckMsg,
-) -> Result<IbcBasicResponse> {
-    controller::packet_lifecycle_complete(deps, env, msg.original_packet, Some(msg.acknowledgement.data))
+pub fn ibc_packet_ack(deps: DepsMut, env: Env, msg: IbcPacketAckMsg) -> Result<IbcBasicResponse> {
+    controller::packet_lifecycle_complete(
+        deps,
+        env,
+        msg.original_packet,
+        Some(msg.acknowledgement.data),
+    )
 }
 
 #[entry_point]
 pub fn ibc_packet_timeout(
     deps: DepsMut,
-    env: Env,
-    msg: IbcPacketTimeoutMsg,
+    env:  Env,
+    msg:  IbcPacketTimeoutMsg,
 ) -> Result<IbcBasicResponse> {
     controller::packet_lifecycle_complete(deps, env, msg.packet, None)
 }

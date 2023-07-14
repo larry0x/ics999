@@ -61,12 +61,12 @@ pub(super) struct Handler {
 
 impl Handler {
     pub fn create(
-        store: &dyn Storage,
-        src: IbcEndpoint,
-        dest: IbcEndpoint,
-        controller: String,
+        store:       &dyn Storage,
+        src:         IbcEndpoint,
+        dest:        IbcEndpoint,
+        controller:  String,
         mut actions: Vec<Action>,
-        traces: Vec<Trace>,
+        traces:      Vec<Trace>,
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
@@ -81,9 +81,9 @@ impl Handler {
             controller,
             host,
             traces,
-            action: None,
+            action:          None,
             pending_actions: actions,
-            results: vec![],
+            results:         vec![],
         })
     }
 
@@ -102,8 +102,8 @@ impl Handler {
     /// Execute the next action in the queue. Saved the updated handler state.
     pub fn handle_next_action(
         mut self,
-        deps: DepsMut,
-        env: Env,
+        deps:     DepsMut,
+        env:      Env,
         response: Option<Response>,
     ) -> Result<Response> {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
@@ -178,7 +178,7 @@ impl Handler {
                     }
 
                     self.results.push(ActionResult::Transfer {
-                        denom: denom.clone(),
+                        denom:     denom.clone(),
                         new_token,
                         recipient: recipient.to_string(),
                     });
@@ -192,14 +192,14 @@ impl Handler {
                     // therefore we first mint to ourself, then transfer to the recipient
                     response
                         .add_message(tokenfactory::MsgMint {
-                            sender: env.contract.address.clone().into(),
+                            sender:          env.contract.address.clone().into(),
                             mint_to_address: env.contract.address.into(),
-                            amount: Some(into_proto_coin(coin.clone())),
+                            amount:          Some(into_proto_coin(coin.clone())),
                         })
                         .add_submessage(SubMsg::reply_on_success(
                             BankMsg::Send {
                                 to_address: recipient.into(),
-                                amount: vec![coin],
+                                amount:     vec![coin],
                             },
                             AFTER_ACTION,
                         ))
@@ -216,7 +216,7 @@ impl Handler {
                     };
 
                     self.results.push(ActionResult::Transfer {
-                        denom: denom.clone(),
+                        denom:     denom.clone(),
                         new_token: false,
                         recipient: recipient.to_string(),
                     });
@@ -229,7 +229,7 @@ impl Handler {
                     response.add_submessage(SubMsg::reply_on_success(
                         BankMsg::Send {
                             to_address: recipient.into(),
-                            amount: vec![coin],
+                            amount:     vec![coin],
                         },
                         AFTER_ACTION,
                     ))
@@ -279,7 +279,7 @@ impl Handler {
                             admin: Some(env.contract.address.into()),
                             code_id,
                             label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
-                            msg: to_binary(&Empty {})?,
+                            msg:   to_binary(&Empty {})?,
                             funds: vec![],
                             salt,
                         },
