@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty, Env, IbcEndpoint,
-    Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
+    QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
@@ -315,10 +315,10 @@ impl Handler {
                     });
                 };
 
-                let query_req = to_binary(&WasmQuery::Smart {
+                let query_req = to_binary(&QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
                     contract_addr: addr.into(),
                     msg,
-                })?;
+                }))?;
 
                 let query_res = deps
                     .querier
