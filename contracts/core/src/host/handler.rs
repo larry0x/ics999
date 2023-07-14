@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, DepsMut, Empty,
-    Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg, WasmQuery,
+    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty, Env, IbcEndpoint,
+    Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
 };
 use cw_storage_plus::Item;
 use cw_utils::parse_execute_response_data;
@@ -315,19 +315,20 @@ impl Handler {
                     });
                 };
 
-                let query_req = WasmQuery::Smart {
+                let query_req = to_binary(&WasmQuery::Smart {
                     contract_addr: addr.into(),
                     msg,
-                };
+                })?;
 
-                let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
-
-                let SystemResult::Ok(ContractResult::Ok(query_res_bin)) = query_res else {
-                    return Err(ContractError::QueryFailed);
-                };
+                let query_res = deps
+                    .querier
+                    .raw_query(&query_req)
+                    .into_result()?
+                    .into_result()
+                    .map_err(ContractError::QueryContract)?;
 
                 self.results.push(ActionResult::Query {
-                    response: query_res_bin,
+                    response: query_res,
                 });
 
                 response = response.add_attribute("action", "query");

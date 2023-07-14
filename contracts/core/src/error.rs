@@ -20,14 +20,17 @@ pub enum ContractError {
     #[error(transparent)]
     ParseReply(#[from] ParseReplyError),
 
+    #[error("query failed due to system error: {0}")]
+    QuerySystem(#[from] cosmwasm_std::SystemError),
+
+    #[error("query failed due to contract error: {0}")]
+    QueryContract(String),
+
     #[error("action queue cannot be empty")]
     EmptyActionQueue,
 
     #[error("cannot create voucher token because token create fee is non-zero")]
     NonZeroTokenCreationFee,
-
-    #[error("query failed")]
-    QueryFailed,
 
     #[error("unauthorized")]
     Unauthorized,
