@@ -1,12 +1,12 @@
 use cosmwasm_std::{
     from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
-    IbcPacket, IbcTimeout, MessageInfo, Response, StdResult, Storage, SubMsg, WasmMsg,
+    IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
 };
 
 use ics999::{Action, PacketAck, PacketData, SenderExecuteMsg, Trace};
 
 use crate::{
-    error::ContractError,
+    error::{Error, Result},
     state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
     transfer::{burn, escrow, mint, release, TraceItem},
     utils::{query_port, Coins},
@@ -20,7 +20,7 @@ pub fn act(
     connection_id: String,
     actions: Vec<Action>,
     timeout: Option<IbcTimeout>,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     let received_funds = Coins::from(info.funds);
     let mut sending_funds = Coins::empty();
     let mut msgs = vec![];
@@ -63,7 +63,7 @@ pub fn act(
     // the total amount of coins the user has sent to the contract must equal
     // the amount they want to transfer via IBC
     if received_funds != sending_funds {
-        return Err(ContractError::FundsMismatch {
+        return Err(Error::FundsMismatch {
             actual: received_funds,
             expected: sending_funds,
         });
@@ -97,7 +97,7 @@ pub fn packet_lifecycle_complete(
     env: Env,
     packet: IbcPacket,
     ack_bin: Option<Binary>,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     let mut msgs = vec![];
     let mut attrs = vec![];
 
@@ -154,7 +154,7 @@ pub fn packet_lifecycle_complete(
 
 // this method must succeed whether the callback was successful or not
 // if the callback failed, we simply log it here
-pub fn after_callback(success: bool) -> Result<Response, ContractError> {
+pub fn after_callback(success: bool) -> Result<Response> {
     Ok(Response::new()
         .add_attribute("method", "after_callback")
         .add_attribute("success", success.to_string()))
@@ -165,13 +165,13 @@ pub fn after_callback(success: bool) -> Result<Response, ContractError> {
 /// If there isn't a trace stored for this denom, then the current chain must be
 /// the source. In this case, initialize a new trace with the current chain
 /// being the first and only step in the path.
-fn trace_of(store: &dyn Storage, denom: &str) -> StdResult<TraceItem> {
+fn trace_of(store: &dyn Storage, denom: &str) -> Result<TraceItem> {
     Ok(DENOM_TRACES
         .may_load(store, denom)?
         .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
-fn localhost(deps: Deps, connection_id: &str) -> StdResult<IbcEndpoint> {
+fn localhost(deps: Deps, connection_id: &str) -> Result<IbcEndpoint> {
     Ok(IbcEndpoint {
         port_id: query_port(&deps.querier)?,
         channel_id: ACTIVE_CHANNELS.load(deps.storage, connection_id)?,
@@ -322,7 +322,7 @@ mod tests {
             if testcase.should_ok {
                 assert!(result.is_ok());
             } else {
-                assert!(matches!(result, Err(ContractError::FundsMismatch { .. })));
+                assert!(matches!(result, Err(Error::FundsMismatch { .. })));
             }
         }
     }

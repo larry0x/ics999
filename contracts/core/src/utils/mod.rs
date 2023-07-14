@@ -1,11 +1,11 @@
 mod coins;
 
 use cosmwasm_std::{
-    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest, StdResult,
+    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest,
 };
 use sha2::{Digest, Sha256};
 
-use crate::error::ContractError;
+use crate::error::{Error, Result};
 
 pub use self::coins::Coins;
 
@@ -26,14 +26,14 @@ pub fn default_salt(channel_id: &str, controller: &str) -> Binary {
 pub fn connection_of_channel(
     querier: &QuerierWrapper,
     channel_id: &str,
-) -> Result<String, ContractError> {
+) -> Result<String> {
     let chan_res: ChannelResponse = querier.query(&QueryRequest::Ibc(IbcQuery::Channel {
         channel_id: channel_id.into(),
         port_id: None, // default to the contract's own port
     }))?;
 
     let Some(chan) = chan_res.channel else {
-        return Err(ContractError::ChannelNotFound {
+        return Err(Error::ChannelNotFound {
             port_id: query_port(querier)?,
             channel_id: channel_id.into(),
         });
@@ -46,7 +46,8 @@ pub fn connection_of_channel(
 ///
 /// Ideally we can simply to querier.query_port but this function isn't
 /// available yet.
-pub fn query_port(querier: &QuerierWrapper) -> StdResult<String> {
+pub fn query_port(querier: &QuerierWrapper) -> Result<String> {
     querier.query::<PortIdResponse>(&QueryRequest::Ibc(IbcQuery::PortId {}))
         .map(|res| res.port_id)
+        .map_err(Into::into)
 }

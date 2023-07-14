@@ -3,7 +3,7 @@ use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
 };
 
-use crate::error::ContractError;
+use crate::error::{Error, Result};
 
 pub fn mint(
     sender: impl Into<String> + Clone,
@@ -88,7 +88,7 @@ pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
 ///
 /// We don't have the money to pay the fee. If the fee is non-zero then we
 /// simply refuse to complete the transfer.
-pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<(), ContractError> {
+pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<()> {
     let fee = tokenfactory::TokenfactoryQuerier::new(querier)
         .params()?
         .params
@@ -96,7 +96,7 @@ pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<(), Contra
         .denom_creation_fee;
 
     if !fee.is_empty() {
-        return Err(ContractError::NonZeroTokenCreationFee);
+        return Err(Error::NonZeroTokenCreationFee);
     }
 
     Ok(())

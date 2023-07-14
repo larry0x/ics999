@@ -7,7 +7,7 @@ use cosmwasm_std::{
 
 use crate::{
     controller,
-    error::ContractError,
+    error::{Error, Result},
     handshake, host,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     query,
@@ -21,7 +21,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
@@ -36,7 +36,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     match msg {
         ExecuteMsg::Act {
             connection_id,
@@ -44,7 +44,7 @@ pub fn execute(
             timeout,
         } => {
             if actions.is_empty() {
-                return Err(ContractError::EmptyActionQueue);
+                return Err(Error::EmptyActionQueue);
             }
 
             controller::act(deps, env, info, connection_id, actions, timeout)
@@ -57,7 +57,7 @@ pub fn execute(
             traces,
         } => {
             if info.sender != env.contract.address {
-                return Err(ContractError::Unauthorized);
+                return Err(Error::Unauthorized);
             }
 
             host::handle(deps, env, src, dest, controller, actions, traces)
@@ -70,7 +70,7 @@ pub fn reply(
     deps: DepsMut,
     env: Env,
     msg: Reply,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     match msg.id {
         AFTER_ACTION => host::after_action(deps, env, msg.result),
         AFTER_ALL_ACTIONS => host::after_all_actions(msg.result),
@@ -116,7 +116,7 @@ pub fn ibc_channel_open(
     deps: DepsMut,
     _env: Env,
     msg: IbcChannelOpenMsg,
-) -> Result<IbcChannelOpenResponse, ContractError> {
+) -> Result<IbcChannelOpenResponse> {
     match msg {
         IbcChannelOpenMsg::OpenInit {
             channel,
@@ -133,7 +133,7 @@ pub fn ibc_channel_connect(
     deps: DepsMut,
     _env: Env,
     msg: IbcChannelConnectMsg,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     handshake::open_connect(deps, msg.channel(), msg.counterparty_version())
 }
 
@@ -142,7 +142,7 @@ pub fn ibc_channel_close(
     _deps: DepsMut,
     _env: Env,
     msg: IbcChannelCloseMsg,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     handshake::close(msg)
 }
 
@@ -151,7 +151,7 @@ pub fn ibc_packet_receive(
     deps: DepsMut,
     env: Env,
     msg: IbcPacketReceiveMsg,
-) -> Result<IbcReceiveResponse, ContractError> {
+) -> Result<IbcReceiveResponse> {
     host::packet_receive(deps, env, msg.packet)
 }
 
@@ -160,7 +160,7 @@ pub fn ibc_packet_ack(
     deps: DepsMut,
     env: Env,
     msg: IbcPacketAckMsg,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     controller::packet_lifecycle_complete(deps, env, msg.original_packet, Some(msg.acknowledgement.data))
 }
 
@@ -169,6 +169,6 @@ pub fn ibc_packet_timeout(
     deps: DepsMut,
     env: Env,
     msg: IbcPacketTimeoutMsg,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     controller::packet_lifecycle_complete(deps, env, msg.packet, None)
 }

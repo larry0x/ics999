@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 
 use crate::{
-    error::ContractError,
+    error::{Error, Result},
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     CONTRACT_NAME, CONTRACT_VERSION, REPLY_ID,
 };
@@ -14,7 +14,7 @@ pub fn instantiate(
     _:    Env,
     info: MessageInfo,
     _:    InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(info.sender.as_str()))?;
 
@@ -24,12 +24,7 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    _:    Env,
-    info: MessageInfo,
-    msg:  ExecuteMsg,
-) -> Result<Response, ContractError> {
+pub fn execute(deps: DepsMut, _: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response> {
     cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
     Ok(Response::new()
@@ -38,7 +33,7 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(_deps: DepsMut, _: Env, msg: Reply) -> Result<Response> {
     match msg.id {
         // if the submsg returned data, we need to forward it back to one-core
         //
@@ -49,24 +44,24 @@ pub fn reply(_deps: DepsMut, _: Env, msg: Reply) -> Result<Response, ContractErr
             let mut res = Response::new();
 
             // this submsg is reply on success, so we expect it to succeed
-            let submsg_res = msg.result.into_result().map_err(ContractError::SubMsgFailed)?;
+            let submsg_res = msg.result.into_result().map_err(Error::SubMsgFailed)?;
             if let Some(data) = submsg_res.data {
                 res = res.set_data(data);
             }
 
             Ok(res)
         },
-        id => Err(ContractError::UnknownReplyId(id)),
+        id => Err(Error::UnknownReplyId(id)),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary> {
     deps.querier
         .raw_query(&to_binary(&msg)?)
         .into_result()?
         .into_result()
-        .map_err(ContractError::QueryContract)
+        .map_err(Error::QueryContract)
 }
 
 // ----------------------------------- Tests -----------------------------------
@@ -109,7 +104,7 @@ mod tests {
                 cosmos_msg.clone(),
             )
             .unwrap_err();
-            assert_eq!(err, ContractError::Ownership(OwnershipError::NotOwner));
+            assert_eq!(err, Error::Ownership(OwnershipError::NotOwner));
         }
 
         // owner

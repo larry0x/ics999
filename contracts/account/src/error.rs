@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, thiserror::Error)]
-pub enum ContractError {
+pub enum Error {
     #[error(transparent)]
     Std(#[from] cosmwasm_std::StdError),
 
@@ -18,3 +18,5 @@ pub enum ContractError {
     #[error("unknown reply id: {0}")]
     UnknownReplyId(u64),
 }
+
+pub(crate) type Result<T> = core::result::Result<T, Error>;

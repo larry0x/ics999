@@ -9,7 +9,7 @@ use cw_utils::parse_execute_response_data;
 use ics999::{Action, PacketAck, PacketData, Trace};
 
 use crate::{
-    error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
+    error::Result, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
 };
 
 use self::handler::Handler;
@@ -18,7 +18,7 @@ pub fn packet_receive(
     deps: DepsMut,
     env: Env,
     packet: IbcPacket,
-) -> Result<IbcReceiveResponse, ContractError> {
+) -> Result<IbcReceiveResponse> {
     // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
 
@@ -56,7 +56,7 @@ pub fn handle(
     controller: String,
     actions: Vec<Action>,
     traces: Vec<Trace>,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     let handler = Handler::create(deps.storage, src, dest, controller, actions, traces)?;
     handler.handle_next_action(deps, env, None)
 }
@@ -65,13 +65,13 @@ pub fn after_action(
     deps: DepsMut,
     env: Env,
     res: SubMsgResult,
-) -> Result<Response, ContractError> {
+) -> Result<Response> {
     let mut handler = Handler::load(deps.storage)?;
     handler.after_action(res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env, None)
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
+pub fn after_all_actions(res: SubMsgResult) -> Result<Response> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {

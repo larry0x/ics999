@@ -4,7 +4,7 @@ use cw_utils::{ParseReplyError, PaymentError};
 use crate::utils::Coins;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
-pub enum ContractError {
+pub enum Error {
     #[error(transparent)]
     Std(#[from] StdError),
 
@@ -84,3 +84,5 @@ pub enum ContractError {
         controller: String,
     },
 }
+
+pub(crate) type Result<T> = core::result::Result<T, Error>;

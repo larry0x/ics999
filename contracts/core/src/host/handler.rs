@@ -10,7 +10,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 use ics999::{Action, ActionResult, Trace};
 
 use crate::{
-    error::ContractError,
+    error::{Error, Result},
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     utils::default_salt,
@@ -105,7 +105,7 @@ impl Handler {
         deps: DepsMut,
         env: Env,
         response: Option<Response>,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response> {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
 
         // grab the first action in the queue
@@ -133,7 +133,7 @@ impl Handler {
                     .traces
                     .iter()
                     .find(|trace| trace.denom == src_denom)
-                    .ok_or(ContractError::TraceNotFound {
+                    .ok_or(Error::TraceNotFound {
                         denom: src_denom,
                     })?
                     .into();
@@ -142,7 +142,7 @@ impl Handler {
                     // if the sender doesn't specify the recipient, default to
                     // their interchain account
                     // error if the sender does not already own an ICA
-                    None => self.host.clone().ok_or_else(|| ContractError::AccountNotFound {
+                    None => self.host.clone().ok_or_else(|| Error::AccountNotFound {
                         channel_id: self.dest.channel_id.clone(),
                         controller: self.controller.clone(),
                     })?,
@@ -241,7 +241,7 @@ impl Handler {
             } => {
                 // only one ICA per controller allowed
                 if self.host.is_some() {
-                    return Err(ContractError::AccountExists {
+                    return Err(Error::AccountExists {
                         channel_id: self.dest.channel_id,
                         controller: self.controller,
                     })?;
@@ -289,7 +289,7 @@ impl Handler {
 
             Action::Execute(msg) => {
                 let Some(addr) = &self.host else {
-                    return Err(ContractError::AccountNotFound {
+                    return Err(Error::AccountNotFound {
                         channel_id: self.dest.channel_id,
                         controller: self.controller,
                     });
@@ -309,7 +309,7 @@ impl Handler {
 
             Action::Query(msg) => {
                 let Some(addr) = &self.host else {
-                    return Err(ContractError::AccountNotFound {
+                    return Err(Error::AccountNotFound {
                         channel_id: self.dest.channel_id,
                         controller: self.controller,
                     });
@@ -325,7 +325,7 @@ impl Handler {
                     .raw_query(&query_req)
                     .into_result()?
                     .into_result()
-                    .map_err(ContractError::QueryContract)?;
+                    .map_err(Error::QueryContract)?;
 
                 self.results.push(ActionResult::Query {
                     response: query_res,
@@ -343,7 +343,7 @@ impl Handler {
     }
 
     /// After an `Execute` action has been completed, parse the response
-    pub fn after_action(&mut self, data: Option<Binary>) -> Result<(), ContractError> {
+    pub fn after_action(&mut self, data: Option<Binary>) -> Result<()> {
         // the action that was executed
         let action = self.action.as_ref().expect("missing active action");
 
