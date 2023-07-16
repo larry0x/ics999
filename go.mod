@@ -297,7 +297,8 @@ replace (
 	// - add tokenfactory module
 	// - whitelist tokenfactory-related stargate queries
 	// - increase default gas limit used in ibctesting (from 3M to 15M)
-	github.com/CosmWasm/wasmd => github.com/larry0x/wasmd v0.0.0-20230329210804-9d6403fdabd4
+	// - add a raw query method to TestChain
+	github.com/CosmWasm/wasmd => github.com/larry0x/wasmd v0.0.0-20230716192624-4210bf7b2038
 
 	// use cosmos flavored gogo/protobuf
 	// https://github.com/cosmos/cosmos-sdk/issues/8469

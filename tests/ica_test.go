@@ -46,10 +46,17 @@ func (suite *testSuite) TestRegisterAccount() {
 		accountInfo.Label,
 	)
 
-	// TODO: assert the ICA contract's ownership
-	// previously we used a smart query, however now we need a raw query but the
-	// testing utility doesn't provide this capability. we should make a PR to
-	// wasmd on this
+	// make sure the ICA contract's ownership is properly set
+	requireOwnershipEqual(
+		suite.T(),
+		suite.chainB,
+		accountAddr,
+		types.OwnershipResponse{
+			Owner:         suite.chainB.coreAddr.String(),
+			PendingOwner:  "",
+			PendingExpiry: nil,
+		},
+	)
 
 	// attempt to register account again, should fail
 	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
