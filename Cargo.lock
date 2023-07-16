@@ -517,6 +517,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
 
 [[package]]
+name = "mock-account-factory"
+version = "0.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "ics999",
+ "thiserror",
+]
+
+[[package]]
 name = "mock-counter"
 version = "0.0.0"
 dependencies = [
