@@ -292,15 +292,15 @@ impl Handler {
                         // A custom factory is used to create the ICA
                         // We will get the ICA address from the response data.
                         response
-                        .add_attribute("action", "register_account")
-                        .add_submessage(SubMsg::reply_on_success(
-                            WasmMsg::Execute {
-                                contract_addr: address,
-                                msg,
-                                funds: vec![]
-                            },
-                            AFTER_CUSTOM_FACTORY,
-                        ))
+                            .add_attribute("action", "register_account")
+                            .add_submessage(SubMsg::reply_on_success(
+                                WasmMsg::Execute {
+                                    contract_addr: address,
+                                    msg,
+                                    funds: vec![]
+                                },
+                                AFTER_CUSTOM_FACTORY,
+                            ))
                     },
                 }
             },
