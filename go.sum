@@ -846,8 +846,8 @@ github.com/labstack/echo/v4 v4.1.11/go.mod h1:i541M3Fj6f76NZtHSj7TXnyM8n2gaodfvf
 github.com/labstack/echo/v4 v4.2.1/go.mod h1:AA49e0DZ8kk5jTOOCKNuPR6oTnBS0dYiM4FW1e6jwpg=
 github.com/labstack/echo/v4 v4.5.0/go.mod h1:czIriw4a0C1dFun+ObrXp7ok03xON0N1awStJ6ArI7Y=
 github.com/labstack/gommon v0.3.0/go.mod h1:MULnywXg0yavhxWKc+lOruYdAhDwPK9wf0OL7NoOu+k=
-github.com/larry0x/wasmd v0.0.0-20230329210804-9d6403fdabd4 h1:Hzwp9VkAAVy0hZBxxyNMhUSPY6TTkUg10DuTK+wwaQU=
-github.com/larry0x/wasmd v0.0.0-20230329210804-9d6403fdabd4/go.mod h1:vn3GyC1othjzM0/ca871rrPz85p/bx2hdIpcE0tWmAU=
+github.com/larry0x/wasmd v0.0.0-20230716192624-4210bf7b2038 h1:/e14CTHkuWlzafOKDMWz4GBelmzMOJtGrkE5P4L3Egk=
+github.com/larry0x/wasmd v0.0.0-20230716192624-4210bf7b2038/go.mod h1:vn3GyC1othjzM0/ca871rrPz85p/bx2hdIpcE0tWmAU=
 github.com/ldez/gomoddirectives v0.2.3 h1:y7MBaisZVDYmKvt9/l1mjNCiSA1BVn34U0ObUcJwlhA=
 github.com/ldez/gomoddirectives v0.2.3/go.mod h1:cpgBogWITnCfRq2qGoDkKMEVSaarhdBr6g8G04uz6d0=
 github.com/ldez/tagliatelle v0.5.0 h1:epgfuYt9v0CG3fms0pEgIMNPuFf/LpPIfjk4kyqSioo=

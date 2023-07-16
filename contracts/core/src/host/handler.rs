@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, ContractResult, DepsMut, Empty,
-    Env, IbcEndpoint, Response, StdResult, Storage, SubMsg, SystemResult, WasmMsg,
+    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty, Env, IbcEndpoint,
+    QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
 };
 use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
@@ -10,7 +10,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 use ics999::{Action, ActionResult, Trace, AccountRegistrationInfo};
 
 use crate::{
-    error::ContractError,
+    error::{Error, Result},
     state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     utils::default_salt,
@@ -62,12 +62,12 @@ pub(super) struct Handler {
 
 impl Handler {
     pub fn create(
-        store: &dyn Storage,
-        src: IbcEndpoint,
-        dest: IbcEndpoint,
-        controller: String,
+        store:       &dyn Storage,
+        src:         IbcEndpoint,
+        dest:        IbcEndpoint,
+        controller:  String,
         mut actions: Vec<Action>,
-        traces: Vec<Trace>,
+        traces:      Vec<Trace>,
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
@@ -82,9 +82,9 @@ impl Handler {
             controller,
             host,
             traces,
-            action: None,
+            action:          None,
             pending_actions: actions,
-            results: vec![],
+            results:         vec![],
         })
     }
 
@@ -103,10 +103,10 @@ impl Handler {
     /// Execute the next action in the queue. Saved the updated handler state.
     pub fn handle_next_action(
         mut self,
-        deps: DepsMut,
-        env: Env,
+        deps:     DepsMut,
+        env:      Env,
         response: Option<Response>,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response> {
         let mut response = response.unwrap_or_else(|| self.default_handle_action_response());
 
         // grab the first action in the queue
@@ -134,7 +134,7 @@ impl Handler {
                     .traces
                     .iter()
                     .find(|trace| trace.denom == src_denom)
-                    .ok_or(ContractError::TraceNotFound {
+                    .ok_or(Error::TraceNotFound {
                         denom: src_denom,
                     })?
                     .into();
@@ -143,7 +143,7 @@ impl Handler {
                     // if the sender doesn't specify the recipient, default to
                     // their interchain account
                     // error if the sender does not already own an ICA
-                    None => self.host.clone().ok_or_else(|| ContractError::AccountNotFound {
+                    None => self.host.clone().ok_or_else(|| Error::AccountNotFound {
                         channel_id: self.dest.channel_id.clone(),
                         controller: self.controller.clone(),
                     })?,
@@ -179,7 +179,7 @@ impl Handler {
                     }
 
                     self.results.push(ActionResult::Transfer {
-                        denom: denom.clone(),
+                        denom:     denom.clone(),
                         new_token,
                         recipient: recipient.to_string(),
                     });
@@ -193,14 +193,14 @@ impl Handler {
                     // therefore we first mint to ourself, then transfer to the recipient
                     response
                         .add_message(tokenfactory::MsgMint {
-                            sender: env.contract.address.clone().into(),
+                            sender:          env.contract.address.clone().into(),
                             mint_to_address: env.contract.address.into(),
-                            amount: Some(into_proto_coin(coin.clone())),
+                            amount:          Some(into_proto_coin(coin.clone())),
                         })
                         .add_submessage(SubMsg::reply_on_success(
                             BankMsg::Send {
                                 to_address: recipient.into(),
-                                amount: vec![coin],
+                                amount:     vec![coin],
                             },
                             AFTER_ACTION,
                         ))
@@ -217,7 +217,7 @@ impl Handler {
                     };
 
                     self.results.push(ActionResult::Transfer {
-                        denom: denom.clone(),
+                        denom:     denom.clone(),
                         new_token: false,
                         recipient: recipient.to_string(),
                     });
@@ -230,23 +230,20 @@ impl Handler {
                     response.add_submessage(SubMsg::reply_on_success(
                         BankMsg::Send {
                             to_address: recipient.into(),
-                            amount: vec![coin],
+                            amount:     vec![coin],
                         },
                         AFTER_ACTION,
                     ))
                 }
             },
 
-            Action::RegisterAccount (
-                details,
-            ) => {
+            Action::RegisterAccount(details) => {
                 // match the type of registration flow
                 match details {
                     AccountRegistrationInfo::RegisterAccount { salt } => {
-
                         // only one ICA per controller allowed
                         if self.host.is_some() {
-                            return Err(ContractError::AccountExists {
+                            return Err(Error::AccountExists {
                                 channel_id: self.dest.channel_id,
                                 controller: self.controller,
                             })?;
@@ -309,9 +306,9 @@ impl Handler {
                 }
             },
 
-            Action::Execute(cosmos_msg) => {
+            Action::Execute(msg) => {
                 let Some(addr) = &self.host else {
-                    return Err(ContractError::AccountNotFound {
+                    return Err(Error::AccountNotFound {
                         channel_id: self.dest.channel_id,
                         controller: self.controller,
                     });
@@ -322,22 +319,35 @@ impl Handler {
                     .add_submessage(SubMsg::reply_on_success(
                         WasmMsg::Execute {
                             contract_addr: addr.into(),
-                            msg: to_binary(&cosmos_msg)?,
+                            msg,
                             funds: vec![],
                         },
                         AFTER_ACTION,
                     ))
             },
 
-            Action::Query(query_req) => {
-                let query_res = deps.querier.raw_query(&to_binary(&query_req)?);
-
-                let SystemResult::Ok(ContractResult::Ok(query_res_bin)) = query_res else {
-                    return Err(ContractError::QueryFailed);
+            Action::Query(msg) => {
+                let Some(addr) = &self.host else {
+                    return Err(Error::AccountNotFound {
+                        channel_id: self.dest.channel_id,
+                        controller: self.controller,
+                    });
                 };
 
+                let query_req = to_binary(&QueryRequest::<Empty>::Wasm(WasmQuery::Smart {
+                    contract_addr: addr.into(),
+                    msg,
+                }))?;
+
+                let query_res = deps
+                    .querier
+                    .raw_query(&query_req)
+                    .into_result()?
+                    .into_result()
+                    .map_err(Error::QueryContract)?;
+
                 self.results.push(ActionResult::Query {
-                    response: query_res_bin,
+                    response: query_res,
                 });
 
                 response = response.add_attribute("action", "query");
@@ -352,7 +362,7 @@ impl Handler {
     }
 
     /// After an `Execute` action has been completed, parse the response
-    pub fn after_action(&mut self, deps: DepsMut, data: Option<Binary>) -> Result<(), ContractError> {
+    pub fn after_action(&mut self, deps: DepsMut, data: Option<Binary>) -> Result<()> {
         // the action that was executed
         let action = self.action.as_ref().expect("missing active action");
 
@@ -368,10 +378,10 @@ impl Handler {
             self.results.push(ActionResult::Execute {
                 data,
             });
-        } else if let Action::RegisterAccount(AccountRegistrationInfo::CustomFactory { address: _, msg: _ }) = action {
+        } else if let Action::RegisterAccount(AccountRegistrationInfo::CustomFactory { .. }) = action {
             // TODO: We could consider moving this into a separate reply_id
             // assert we have data
-            let bin = data.ok_or(ContractError::FactoryResponseDataMissing)?;
+            let bin = data.ok_or(Error::FactoryResponseDataMissing)?;
 
             // We parse the response data from the custom factory (which is expected to be an MsgInstantiateContractResponse)
             // to get the ICA address.

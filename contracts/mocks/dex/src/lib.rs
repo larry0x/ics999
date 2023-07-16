@@ -10,7 +10,7 @@ pub const CONFIG: Item<Config> = Item::new("config");
 
 #[cw_serde]
 pub struct Config {
-    denom_in: String,
+    denom_in:  String,
     denom_out: String,
 }
 
@@ -40,8 +40,8 @@ pub enum ContractError {
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
+    _: Env,
+    _: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     CONFIG.save(deps.storage, &msg)?;
@@ -52,7 +52,7 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    _: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -71,7 +71,7 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&CONFIG.load(deps.storage)?),
     }

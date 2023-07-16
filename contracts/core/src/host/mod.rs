@@ -8,17 +8,11 @@ use cw_utils::parse_execute_response_data;
 
 use ics999::{Action, PacketAck, PacketData, Trace};
 
-use crate::{
-    error::ContractError, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS,
-};
+use crate::{error::Result, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS};
 
 use self::handler::Handler;
 
-pub fn packet_receive(
-    deps: DepsMut,
-    env: Env,
-    packet: IbcPacket,
-) -> Result<IbcReceiveResponse, ContractError> {
+pub fn packet_receive(deps: DepsMut, env: Env, packet: IbcPacket) -> Result<IbcReceiveResponse> {
     // find the connection ID corresponding to the sender channel
     let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
 
@@ -36,11 +30,11 @@ pub fn packet_receive(
             WasmMsg::Execute {
                 contract_addr: env.contract.address.into(),
                 msg: to_binary(&ExecuteMsg::Handle {
-                    src: packet.src,
-                    dest: packet.dest,
+                    src:        packet.src,
+                    dest:       packet.dest,
                     controller: pd.sender,
-                    actions: pd.actions,
-                    traces: pd.traces,
+                    actions:    pd.actions,
+                    traces:     pd.traces,
                 })?,
                 funds: vec![],
             },
@@ -49,29 +43,25 @@ pub fn packet_receive(
 }
 
 pub fn handle(
-    deps: DepsMut,
-    env: Env,
-    src: IbcEndpoint,
-    dest: IbcEndpoint,
+    deps:       DepsMut,
+    env:        Env,
+    src:        IbcEndpoint,
+    dest:       IbcEndpoint,
     controller: String,
-    actions: Vec<Action>,
-    traces: Vec<Trace>,
-) -> Result<Response, ContractError> {
+    actions:    Vec<Action>,
+    traces:     Vec<Trace>,
+) -> Result<Response> {
     let handler = Handler::create(deps.storage, src, dest, controller, actions, traces)?;
     handler.handle_next_action(deps, env, None)
 }
 
-pub fn after_action(
-    mut deps: DepsMut,
-    env: Env,
-    res: SubMsgResult,
-) -> Result<Response, ContractError> {
+pub fn after_action(mut deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response> {
     let mut handler = Handler::load(deps.storage)?;
     handler.after_action(deps.branch(), res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env, None)
 }
 
-pub fn after_all_actions(res: SubMsgResult) -> Result<Response, ContractError> {
+pub fn after_all_actions(res: SubMsgResult) -> Result<Response> {
     let ack = match &res {
         // all actions were successful - write an Success ack
         SubMsgResult::Ok(SubMsgResponse {

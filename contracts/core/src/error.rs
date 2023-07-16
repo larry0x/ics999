@@ -4,7 +4,7 @@ use cw_utils::{ParseReplyError, PaymentError};
 use crate::utils::Coins;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
-pub enum ContractError {
+pub enum Error {
     #[error(transparent)]
     Std(#[from] StdError),
 
@@ -20,14 +20,17 @@ pub enum ContractError {
     #[error(transparent)]
     ParseReply(#[from] ParseReplyError),
 
+    #[error("query failed due to system error: {0}")]
+    QuerySystem(#[from] cosmwasm_std::SystemError),
+
+    #[error("query failed due to contract error: {0}")]
+    QueryContract(String),
+
     #[error("action queue cannot be empty")]
     EmptyActionQueue,
 
     #[error("cannot create voucher token because token create fee is non-zero")]
     NonZeroTokenCreationFee,
-
-    #[error("query failed")]
-    QueryFailed,
 
     #[error("unauthorized")]
     Unauthorized,
@@ -42,19 +45,19 @@ pub enum ContractError {
 
     #[error("incorrect amount of funds sent: expecting `{expected}`, found `{actual}`")]
     FundsMismatch {
-        actual: Coins,
+        actual:   Coins,
         expected: Coins,
     },
 
     #[error("incorrect IBC channel order: expecting `{expected:?}`, found `{actual:?}`")]
     IncorrectOrder {
-        actual: IbcOrder,
+        actual:   IbcOrder,
         expected: IbcOrder,
     },
 
     #[error("incorrect IBC channel version: expecting `{expected}`, found `{actual}`")]
     IncorrectVersion {
-        actual: String,
+        actual:   String,
         expected: String,
     },
 
@@ -65,7 +68,7 @@ pub enum ContractError {
 
     #[error("no channel found at port `{port_id}` with channel id `{channel_id}`")]
     ChannelNotFound {
-        port_id: String,
+        port_id:    String,
         channel_id: String,
     },
 
@@ -84,3 +87,5 @@ pub enum ContractError {
     #[error("ICA factory account creation failed to provide instantiate data in its response")]
     FactoryResponseDataMissing
 }
+
+pub(crate) type Result<T> = core::result::Result<T, Error>;

@@ -1,38 +1,47 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg,
+    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo,
+    QueryRequest, Reply, Response, SubMsg,
 };
-use cw_ownable::{cw_ownable_query, OwnershipError};
 
-pub const CONTRACT_NAME: &str = "crates.io:one-account";
+pub type InstantiateMsg = Empty;
+pub type ExecuteMsg     = CosmosMsg<Empty>;
+pub type QueryMsg       = QueryRequest<Empty>;
+
+pub const CONTRACT_NAME:    &str = "crates.io:one-account";
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const REPLY_ID: u64 = 69420;
 
-#[cw_ownable_query]
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum QueryMsg {
-    // nothing to query other than ownership
-}
-
 #[derive(Debug, PartialEq, thiserror::Error)]
-pub enum ContractError {
+pub enum Error {
     #[error(transparent)]
-    Std(#[from] StdError),
+    Std(#[from] cosmwasm_std::StdError),
 
     #[error(transparent)]
-    Ownership(#[from] OwnershipError),
+    Ownership(#[from] cw_ownable::OwnershipError),
+
+    #[error("query failed due to system error: {0}")]
+    QuerySystem(#[from] cosmwasm_std::SystemError),
+
+    #[error("query failed due to contract error: {0}")]
+    QueryContract(String),
+
+    #[error("submessage failed to execute: {0}")]
+    SubMsgFailed(String),
+
+    #[error("unknown reply id: {0}")]
+    UnknownReplyId(u64),
 }
+
+type Result<T> = core::result::Result<T, Error>;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    _:    Env,
     info: MessageInfo,
-    _msg: Empty,
-) -> Result<Response, ContractError> {
+    _:    InstantiateMsg,
+) -> Result<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     cw_ownable::initialize_owner(deps.storage, deps.api, Some(info.sender.as_str()))?;
 
@@ -42,12 +51,7 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    msg: CosmosMsg,
-) -> Result<Response, ContractError> {
+pub fn execute(deps: DepsMut, _: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response> {
     cw_ownable::assert_owner(deps.storage, &info.sender)?;
 
     Ok(Response::new()
@@ -56,7 +60,7 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(_deps: DepsMut, _: Env, msg: Reply) -> Result<Response> {
     match msg.id {
         // if the submsg returned data, we need to forward it back to one-core
         //
@@ -64,22 +68,27 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, Contract
         // MsgExecuteContractResponse, etc. We don't decode them here. The ICA
         // controller is responsible for decoding it.
         REPLY_ID => {
-            // reply on success so unwrap can't fail
-            let Some(data) = msg.result.unwrap().data else {
-                return Ok(Response::new());
-            };
+            let mut res = Response::new();
 
-            Ok(Response::new().set_data(data))
+            // this submsg is reply on success, so we expect it to succeed
+            let submsg_res = msg.result.into_result().map_err(Error::SubMsgFailed)?;
+            if let Some(data) = submsg_res.data {
+                res = res.set_data(data);
+            }
+
+            Ok(res)
         },
-        id => unreachable!("unknown reply ID: `{id}`"),
+        id => Err(Error::UnknownReplyId(id)),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Ownership {} => to_binary(&cw_ownable::get_ownership(deps.storage)?),
-    }
+pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> Result<Binary> {
+    deps.querier
+        .raw_query(&to_binary(&msg)?)
+        .into_result()?
+        .into_result()
+        .map_err(Error::QueryContract)
 }
 
 // ----------------------------------- Tests -----------------------------------
@@ -89,8 +98,9 @@ mod tests {
     use cosmwasm_std::{
         coins,
         testing::{mock_dependencies, mock_env, mock_info},
-        BankMsg, SubMsgResult, SubMsgResponse,
+        BankMsg, CosmosMsg, SubMsgResult, SubMsgResponse,
     };
+    use cw_ownable::OwnershipError;
 
     use super::*;
 
@@ -108,7 +118,7 @@ mod tests {
             deps.as_mut(),
             mock_env(),
             mock_info("one-core", &[]),
-            Empty {},
+            InstantiateMsg {},
         )
         .unwrap();
 
@@ -121,7 +131,7 @@ mod tests {
                 cosmos_msg.clone(),
             )
             .unwrap_err();
-            assert_eq!(err, ContractError::Ownership(OwnershipError::NotOwner));
+            assert_eq!(err, Error::Ownership(OwnershipError::NotOwner));
         }
 
         // owner

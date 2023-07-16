@@ -28,27 +28,27 @@ pub fn denom_trace(deps: Deps, denom: String) -> StdResult<Trace> {
     Ok(Trace {
         denom,
         base_denom: trace.base_denom,
-        path: trace.path,
+        path:       trace.path,
     })
 }
 
 pub fn denom_traces(
-    deps: Deps,
+    deps:        Deps,
     start_after: Option<String>,
-    limit: Option<u32>,
+    limit:       Option<u32>,
 ) -> StdResult<Vec<Trace>> {
     let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
     paginate_map(&DENOM_TRACES, deps.storage, start, limit, |denom, trace| {
         Ok(Trace {
             denom,
             base_denom: trace.base_denom,
-            path: trace.path,
+            path:       trace.path,
         })
     })
 }
 
 pub fn account(
-    deps: Deps,
+    deps:       Deps,
     channel_id: String,
     controller: String,
 ) -> StdResult<AccountResponse> {
@@ -60,9 +60,9 @@ pub fn account(
 }
 
 pub fn accounts(
-    deps: Deps,
+    deps:        Deps,
     start_after: Option<(String, String)>,
-    limit: Option<u32>,
+    limit:       Option<u32>,
 ) -> StdResult<Vec<AccountResponse>> {
     let start = start_after.as_ref().map(|(cid, con)| Bound::exclusive((cid.as_str(), con.as_str())));
     paginate_map(&ACCOUNTS, deps.storage, start, limit, |(channel_id, controller), address| {
@@ -82,9 +82,9 @@ pub fn active_channel(deps: Deps, connection_id: String) -> StdResult<ActiveChan
 }
 
 pub fn active_channels(
-    deps: Deps,
+    deps:        Deps,
     start_after: Option<String>,
-    limit: Option<u32>,
+    limit:       Option<u32>,
 ) -> StdResult<Vec<ActiveChannelResponse>> {
     let start = start_after.as_ref().map(|cid| Bound::exclusive(cid.as_str()));
     paginate_map(&ACTIVE_CHANNELS, deps.storage, start, limit, |connection_id, channel_id| {

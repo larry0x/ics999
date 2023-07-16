@@ -10,14 +10,14 @@ use ics999::Trace;
 #[cw_serde]
 pub struct TraceItem {
     pub base_denom: String,
-    pub path: Vec<IbcEndpoint>,
+    pub path:       Vec<IbcEndpoint>,
 }
 
 impl From<&Trace> for TraceItem {
     fn from(trace: &Trace) -> Self {
         Self {
             base_denom: trace.base_denom.clone(),
-            path: trace.path.clone(),
+            path:       trace.path.clone(),
         }
     }
 }
@@ -27,7 +27,7 @@ impl TraceItem {
     pub fn new(base_denom: &str) -> Self {
         Self {
             base_denom: base_denom.to_owned(),
-            path: vec![],
+            path:       vec![],
         }
     }
 
@@ -35,9 +35,9 @@ impl TraceItem {
     /// full trace.
     pub fn into_full_trace(self, denom: &str) -> Trace {
         Trace {
-            denom: denom.to_owned(),
+            denom:      denom.to_owned(),
             base_denom: self.base_denom,
-            path: self.path,
+            path:       self.path,
         }
     }
 
@@ -97,11 +97,11 @@ mod tests {
             base_denom: "ujuno".into(),
             path: vec![
                 IbcEndpoint {
-                    port_id: "transfer".into(),
+                    port_id:    "transfer".into(),
                     channel_id: "channel-0".into(),
                 },
                 IbcEndpoint {
-                    port_id: "ics999".into(),
+                    port_id:    "ics999".into(),
                     channel_id: "channel-12345".into(),
                 },
             ],
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn determining_source() {
         let mock_src = IbcEndpoint {
-            port_id: "ics999".into(),
+            port_id:    "ics999".into(),
             channel_id: "channel_0".into(),
         };
 
@@ -120,7 +120,7 @@ mod tests {
         {
             let trace = TraceItem {
                 base_denom: "uatom".into(),
-                path: vec![],
+                path:       vec![],
             };
             assert!(trace.sender_is_source(&mock_src));
         }
@@ -132,7 +132,7 @@ mod tests {
                 base_denom: "uatom".into(),
                 path: vec![
                     IbcEndpoint {
-                        port_id: "test".into(),
+                        port_id:    "test".into(),
                         channel_id: "channel-1".into(),
                     },
                 ],
@@ -147,7 +147,7 @@ mod tests {
                 base_denom: "uatom".into(),
                 path: vec![
                     IbcEndpoint {
-                        port_id: "test".into(),
+                        port_id:    "test".into(),
                         channel_id: "channel-1".into(),
                     },
                     mock_src.clone(),

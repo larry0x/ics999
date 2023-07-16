@@ -3,14 +3,14 @@ use osmosis_std::types::{
     cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
 };
 
-use crate::error::ContractError;
+use crate::error::{Error, Result};
 
 pub fn mint(
     sender: impl Into<String> + Clone,
-    to: impl Into<String>,
-    coin: Coin,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
+    to:     impl Into<String>,
+    coin:   Coin,
+    msgs:   &mut Vec<CosmosMsg>,
+    attrs:  &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "mint"));
@@ -33,9 +33,9 @@ pub fn mint(
 
 pub fn burn(
     sender: impl Into<String> + Clone,
-    coin: Coin,
-    msgs: &mut Vec<CosmosMsg>,
-    attrs: &mut Vec<Attribute>,
+    coin:   Coin,
+    msgs:   &mut Vec<CosmosMsg>,
+    attrs:  &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
     attrs.push(attr("action", "burn"));
@@ -50,9 +50,9 @@ pub fn burn(
 }
 
 pub fn release(
-    coin: Coin,
-    to: impl Into<String>,
-    msgs: &mut Vec<CosmosMsg>,
+    coin:  Coin,
+    to:    impl Into<String>,
+    msgs:  &mut Vec<CosmosMsg>,
     attrs: &mut Vec<Attribute>,
 ) {
     attrs.push(attr("coin", coin.to_string()));
@@ -88,7 +88,7 @@ pub fn into_proto_coin(coin: Coin) -> ProtoCoin {
 ///
 /// We don't have the money to pay the fee. If the fee is non-zero then we
 /// simply refuse to complete the transfer.
-pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<(), ContractError> {
+pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<()> {
     let fee = tokenfactory::TokenfactoryQuerier::new(querier)
         .params()?
         .params
@@ -96,7 +96,7 @@ pub fn assert_free_denom_creation(querier: &QuerierWrapper) -> Result<(), Contra
         .denom_creation_fee;
 
     if !fee.is_empty() {
-        return Err(ContractError::NonZeroTokenCreationFee);
+        return Err(Error::NonZeroTokenCreationFee);
     }
 
     Ok(())

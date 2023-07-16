@@ -5,12 +5,15 @@ use cosmwasm_std::{
 
 use ics999;
 
-use crate::{error::ContractError, state::ACTIVE_CHANNELS};
+use crate::{
+    error::{Error, Result},
+    state::ACTIVE_CHANNELS,
+};
 
 pub fn open_init(
-    deps: DepsMut,
+    deps:    DepsMut,
     channel: IbcChannel,
-) -> Result<IbcChannelOpenResponse, ContractError> {
+) -> Result<IbcChannelOpenResponse> {
     validate_order_and_version(&channel.order, &channel.version, None)?;
 
     // only one active ICS-999 channel per connection
@@ -24,10 +27,10 @@ pub fn open_init(
 }
 
 pub fn open_try(
-    deps: DepsMut,
-    channel: IbcChannel,
+    deps:                 DepsMut,
+    channel:              IbcChannel,
     counterparty_version: String,
-) -> Result<IbcChannelOpenResponse, ContractError> {
+) -> Result<IbcChannelOpenResponse> {
     validate_order_and_version(&channel.order, &channel.version, Some(&counterparty_version))?;
 
     assert_unique_channel(deps.storage, &channel.connection_id)?;
@@ -36,10 +39,10 @@ pub fn open_try(
 }
 
 pub fn open_connect(
-    deps: DepsMut,
-    channel: &IbcChannel,
+    deps:                 DepsMut,
+    channel:              &IbcChannel,
     counterparty_version: Option<&str>,
-) -> Result<IbcBasicResponse, ContractError> {
+) -> Result<IbcBasicResponse> {
     validate_order_and_version(&channel.order, &channel.version, counterparty_version)?;
 
     ACTIVE_CHANNELS.save(deps.storage, &channel.connection_id, &channel.endpoint.channel_id)?;
@@ -52,28 +55,28 @@ pub fn open_connect(
 }
 
 fn validate_order_and_version(
-    order: &IbcOrder,
-    version: &str,
+    order:                &IbcOrder,
+    version:              &str,
     counterparty_version: Option<&str>,
-) -> Result<(), ContractError> {
+) -> Result<()> {
     if *order != ics999::ORDER {
-        return Err(ContractError::IncorrectOrder {
-            actual: order.clone(),
+        return Err(Error::IncorrectOrder {
+            actual:   order.clone(),
             expected: ics999::ORDER,
         });
     }
 
     if version != ics999::VERSION {
-        return Err(ContractError::IncorrectVersion {
-            actual: version.into(),
+        return Err(Error::IncorrectVersion {
+            actual:   version.into(),
             expected: ics999::VERSION.into(),
         });
     }
 
     if let Some(cp_version) = counterparty_version {
         if cp_version != ics999::VERSION {
-            return Err(ContractError::IncorrectVersion {
-                actual: cp_version.into(),
+            return Err(Error::IncorrectVersion {
+                actual:   cp_version.into(),
                 expected: ics999::VERSION.into(),
             });
         }
@@ -82,9 +85,9 @@ fn validate_order_and_version(
     Ok(())
 }
 
-fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<(), ContractError> {
+fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<()> {
     if ACTIVE_CHANNELS.has(store, connection_id) {
-        return Err(ContractError::ChannelExists {
+        return Err(Error::ChannelExists {
             connection_id: connection_id.into(),
         });
     }
@@ -92,12 +95,12 @@ fn assert_unique_channel(store: &dyn Storage, connection_id: &str) -> Result<(),
     Ok(())
 }
 
-pub fn close(msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse, ContractError> {
+pub fn close(msg: IbcChannelCloseMsg) -> Result<IbcBasicResponse> {
     match msg {
         // we do not expect an ICS-999 channel to be closed
         IbcChannelCloseMsg::CloseInit {
             ..
-        } => Err(ContractError::UnexpectedChannelClosure),
+        } => Err(Error::UnexpectedChannelClosure),
 
         // If we're here, something has gone catastrophically wrong on our
         // counterparty chain. Per the CloseInit handler above, this contract
@@ -130,7 +133,7 @@ mod tests {
 
     fn mock_ibc_endpoint() -> IbcEndpoint {
         IbcEndpoint {
-            port_id: format!("wasm.{MOCK_CONTRACT_ADDR}"),
+            port_id:    format!("wasm.{MOCK_CONTRACT_ADDR}"),
             channel_id: "channel-0".into(),
         }
     }
@@ -161,7 +164,7 @@ mod tests {
             channel.order = IbcOrder::Ordered;
 
             let err = open_init(deps.as_mut(), channel).unwrap_err();
-            assert!(matches!(err, ContractError::IncorrectOrder { .. }));
+            assert!(matches!(err, Error::IncorrectOrder { .. }));
         }
 
         // incorrect version
@@ -170,7 +173,7 @@ mod tests {
             channel.version = "ics20".into();
 
             let err = open_init(deps.as_mut(), channel).unwrap_err();
-            assert!(matches!(err, ContractError::IncorrectVersion { .. }));
+            assert!(matches!(err, Error::IncorrectVersion { .. }));
         }
 
         // channel already exists for the connection
@@ -182,7 +185,7 @@ mod tests {
                 .unwrap();
 
             let err = open_init(deps.as_mut(), channel).unwrap_err();
-            assert!(matches!(err, ContractError::ChannelExists { .. }));
+            assert!(matches!(err, Error::ChannelExists { .. }));
         }
     }
 
@@ -199,7 +202,7 @@ mod tests {
         // incorrect countarparty version
         {
             let err = open_try(deps.as_mut(), mock_ibc_channel(), "ics20".into()).unwrap_err();
-            assert!(matches!(err, ContractError::IncorrectVersion { .. }));
+            assert!(matches!(err, Error::IncorrectVersion { .. }));
         }
     }
 
@@ -222,6 +225,6 @@ mod tests {
             channel: mock_ibc_channel(),
         })
         .unwrap_err();
-        assert_eq!(err, ContractError::UnexpectedChannelClosure);
+        assert_eq!(err, Error::UnexpectedChannelClosure);
     }
 }

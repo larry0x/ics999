@@ -72,13 +72,13 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain, coins ...sdk.Coin
 	// increase it. for tests to work.
 	// this will no longer be a problem with wasmd 0.31, which uses
 	// simtestutil.DefaultGenTxGas which is 10M.
-	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core.wasm")
+	coreStoreRes := chain.StoreCodeFile("../artifacts/one_core-aarch64.wasm")
 	require.Equal(t, uint64(1), coreStoreRes.CodeID)
-	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account.wasm")
+	accountStoreRes := chain.StoreCodeFile("../artifacts/one_account-aarch64.wasm")
 	require.Equal(t, uint64(2), accountStoreRes.CodeID)
-	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender.wasm")
+	senderStoreRes := chain.StoreCodeFile("../artifacts/mock_sender-aarch64.wasm")
 	require.Equal(t, uint64(3), senderStoreRes.CodeID)
-	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter.wasm")
+	counterStoreRes := chain.StoreCodeFile("../artifacts/mock_counter-aarch64.wasm")
 	require.Equal(t, uint64(4), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
@@ -356,6 +356,24 @@ func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, seque
 	)
 	require.NoError(t, err)
 	require.Equal(t, expOutcome, outcomeRes.Outcome)
+}
+
+func requireOwnershipEqual(t *testing.T, chain *testChain, contractAddr sdk.Address, expOwnership types.OwnershipResponse) {
+	ownershipBin, err := chain.RawQuery(contractAddr.String(), []byte("ownership"))
+	require.NoError(t, err)
+
+	var ownership types.OwnershipResponse
+	err = json.Unmarshal(ownershipBin, &ownership)
+	require.NoError(t, err)
+
+	require.Equal(t, expOwnership, ownership)
+}
+
+func mustMarshalJSON(t *testing.T, i interface{}) []byte {
+	bz, err := json.Marshal(i)
+	require.NoError(t, err)
+
+	return bz
 }
 
 func Test(t *testing.T) {

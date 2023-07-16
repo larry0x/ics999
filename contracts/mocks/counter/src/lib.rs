@@ -38,24 +38,14 @@ pub struct NumberResponse {
 }
 
 #[entry_point]
-pub fn instantiate(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: Empty,
-) -> StdResult<Response> {
+pub fn instantiate(deps: DepsMut, _: Env, _: MessageInfo, _: Empty) -> StdResult<Response> {
     NUMBER.save(deps.storage, &0)?;
 
     Ok(Response::new())
 }
 
 #[entry_point]
-pub fn execute(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, _: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Increment {} => {
             let new_number = NUMBER.update(deps.storage, |number| -> StdResult<_> {
