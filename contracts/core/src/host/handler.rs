@@ -237,9 +237,9 @@ impl Handler {
                 }
             },
 
-            Action::RegisterAccount(details) => {
+            Action::RegisterAccount(options) => {
                 // match the type of registration flow
-                match details {
+                match options {
                     RegisterOptions::Default { salt } => {
                         // only one ICA per controller allowed
                         if self.host.is_some() {
