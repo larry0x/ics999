@@ -7,7 +7,7 @@ use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
-use ics999::{Action, ActionResult, Trace, AccountRegistrationInfo};
+use ics999::{Action, ActionResult, RegisterOptions, Trace};
 
 use crate::{
     error::{Error, Result},
@@ -240,7 +240,7 @@ impl Handler {
             Action::RegisterAccount(details) => {
                 // match the type of registration flow
                 match details {
-                    AccountRegistrationInfo::RegisterAccount { salt } => {
+                    RegisterOptions::Default { salt } => {
                         // only one ICA per controller allowed
                         if self.host.is_some() {
                             return Err(Error::AccountExists {
@@ -288,14 +288,13 @@ impl Handler {
                                 AFTER_ACTION,
                             ))
                     },
-                    AccountRegistrationInfo::CustomFactory { address, msg } => {
+                    RegisterOptions::CustomFactory { address, msg } => {
                         // A custom factory is used to create the ICA
-
                         // We will get the ICA address from the response data.
                         response
                         .add_attribute("action", "register_account")
                         .add_submessage(SubMsg::reply_on_success(
-                            WasmMsg::Execute { 
+                            WasmMsg::Execute {
                                 contract_addr: address,
                                 msg,
                                 funds: vec![]
@@ -378,7 +377,7 @@ impl Handler {
             self.results.push(ActionResult::Execute {
                 data,
             });
-        } else if let Action::RegisterAccount(AccountRegistrationInfo::CustomFactory { .. }) = action {
+        } else if let Action::RegisterAccount(RegisterOptions::CustomFactory { .. }) = action {
             // TODO: We could consider moving this into a separate reply_id
             // assert we have data
             let bin = data.ok_or(Error::FactoryResponseDataMissing)?;
