@@ -7,7 +7,7 @@ use cw_storage_plus::Item;
 use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
 use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
-use ics999::{Action, ActionResult, RegisterOptions, Trace};
+use ics999::{Action, ActionResult, RegisterOptions, Trace, FactoryExecuteMsg, FactoryMsg};
 
 use crate::{
     error::{Error, Result},
@@ -288,16 +288,18 @@ impl Handler {
                                 AFTER_ACTION,
                             ))
                     },
-                    RegisterOptions::CustomFactory { address, msg } => {
-                        // A custom factory is used to create the ICA
-                        // We will get the ICA address from the response data.
+                    RegisterOptions::CustomFactory { address, data } => {
                         response
                             .add_attribute("action", "register_account")
                             .add_submessage(SubMsg::reply_on_success(
                                 WasmMsg::Execute {
                                     contract_addr: address,
-                                    msg,
-                                    funds: vec![]
+                                    msg: to_binary(&FactoryExecuteMsg::Ics999(FactoryMsg {
+                                        src:        self.src.clone(),
+                                        controller: self.controller.clone(),
+                                        data,
+                                    }))?,
+                                    funds: vec![],
                                 },
                                 AFTER_CUSTOM_FACTORY,
                             ))

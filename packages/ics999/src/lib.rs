@@ -106,13 +106,16 @@ pub enum RegisterOptions {
     },
 
     /// If more sophisticated logics are needed for registering the account, the
-    /// user may implement such logics as a "factory" contract and provide its
-    /// address and necessary data here.
+    /// user may implement such logics as a "factory" contract.
+    ///
+    /// To register the account, the user provides the factory contract's
+    /// address, and optional data to be provided to the factory.
+    ///
+    /// Ics999 contract will attempt to call the factory contract using the
+    /// `FactoryExecuteMsg` defined below.
     CustomFactory {
-        /// Address of the factory contract.
         address: String,
-        /// Message for the factory.
-        msg: Binary,
+        data:    Option<Binary>,
     },
 }
 
@@ -177,6 +180,18 @@ pub struct Trace {
     /// Note, this is different from ICS-20, where the latest chain is prefixed
     /// (instead of appended) to the beginning of the trace.
     pub path: Vec<IbcEndpoint>,
+}
+
+#[cw_serde]
+pub enum FactoryExecuteMsg {
+    Ics999(FactoryMsg),
+}
+
+#[cw_serde]
+pub struct FactoryMsg {
+    pub src:        IbcEndpoint,
+    pub controller: String,
+    pub data:       Option<Binary>,
 }
 
 /// If the sender contract wishes to receive a callback after the completion of
