@@ -104,7 +104,6 @@ pub enum AccountRegistrationInfo {
     },
 }
 
-
 #[cw_serde]
 pub enum ActionResult {
     /// Result of a successfully executed `transfer` action.
