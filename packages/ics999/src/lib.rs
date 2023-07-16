@@ -63,20 +63,14 @@ pub enum Action {
         recipient: Option<String>,
     },
 
-    /// Register an interchain account
-    RegisterAccount {
-        /// The interchain account's address is chosen deterministically using
-        /// wasmd's Instantiate2 method.
-        ///
-        /// We need to prevent the attack where an attacker predicts the ICA's
-        /// address ahead of time, and create an account with the same address.
-        /// (this happened on Cosmos Hub which prevented Quicksilver from
-        /// registering their ICA)
-        ///
-        /// To achieve this, we let the user pick the salt. If not given, use
-        /// the controller address's UTF-8 bytes as the salt.
-        salt: Option<Binary>,
-    },
+    /// Register an interchain account.
+    ///
+    /// The user provides a `RegisterOptions` data indicating how the account is
+    /// to be registered. It can be one of two ways:
+    /// - use the default account contract
+    /// - the user to provide a custom "factory" contract which performs the
+    ///   instantiation
+    RegisterAccount(RegisterOptions),
 
     /// Call the ICA contract's execute entry point.
     ///
@@ -89,6 +83,37 @@ pub enum Action {
     /// The message is to be in raw binary format. The ICA contract is
     /// responsible for implementing logics to interpret and handle this message.
     Query(Binary),
+}
+
+#[cw_serde]
+pub enum RegisterOptions {
+    /// Register the account with the default account contract.
+    ///
+    /// The only data that the user needs to provide is a salt (0 - 64 bytes)
+    /// which is used in deriving the account address.
+    Default {
+        /// The interchain account's address is chosen deterministically using
+        /// wasmd's Instantiate2 method.
+        ///
+        /// We need to prevent the attack where an attacker predicts the ICA's
+        /// address ahead of time, and create an account with the same address.
+        /// (this happened on Cosmos Hub which prevented Quicksilver from
+        /// registering their ICA).
+        ///
+        /// To achieve this, we let the user pick the salt. If not given, use
+        /// the controller address's UTF-8 bytes as the salt.
+        salt: Option<Binary>,
+    },
+
+    /// If more sophisticated logics are needed for registering the account, the
+    /// user may implement such logics as a "factory" contract and provide its
+    /// address and necessary data here.
+    CustomFactory {
+        /// Address of the factory contract.
+        address: String,
+        /// Message for the factory.
+        msg: Binary,
+    },
 }
 
 #[cw_serde]

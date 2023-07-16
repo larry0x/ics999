@@ -55,9 +55,9 @@ pub fn handle(
     handler.handle_next_action(deps, env, None)
 }
 
-pub fn after_action(deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response> {
+pub fn after_action(mut deps: DepsMut, env: Env, res: SubMsgResult) -> Result<Response> {
     let mut handler = Handler::load(deps.storage)?;
-    handler.after_action(res.unwrap().data)?; // reply on success so unwrap can't fail
+    handler.after_action(deps.branch(), res.unwrap().data)?; // reply on success so unwrap can't fail
     handler.handle_next_action(deps, env, None)
 }
 

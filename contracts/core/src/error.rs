@@ -29,6 +29,9 @@ pub enum Error {
     #[error("action queue cannot be empty")]
     EmptyActionQueue,
 
+    #[error("account factory failed to return instantiate data in its response")]
+    FactoryResponseDataMissing,
+
     #[error("cannot create voucher token because token create fee is non-zero")]
     NonZeroTokenCreationFee,
 
