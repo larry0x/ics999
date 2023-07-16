@@ -27,28 +27,6 @@ pub struct PacketData {
 ///
 /// Related: ICS-4 recommand acknowldgement envelop format:
 /// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
-///
-/// ** Notes regarding error messages **
-///
-/// Error messages are not merklized; that is, validators do not reach
-/// consensus over the specific error string). This means that error
-/// messages are NOT guaranteed to be deterministic.
-///
-/// Due to this concern, wasmd redacts error messages:
-///   https://github.com/CosmWasm/wasmd/issues/759
-///
-/// In principle, contracts should only have access to data that are
-/// included in the chain's state commitment.
-///
-/// Therefore, although we return a String here, in reality it will only
-/// include the error code, not the message. It will look something like
-/// this:
-///
-/// ```json
-/// {
-///   "error": "codespace: wasm, code: 5"
-/// }
-/// ```
 #[cw_serde]
 pub enum PacketAck {
     /// All actions were executed successfully. In this case, we return the
@@ -61,6 +39,17 @@ pub enum PacketAck {
     /// One of the actions failed to execute. In this case, the entire queue of
     /// actions is considered to be failed. We inform the sender contract of the
     /// failure.
+    ///
+    /// NOTE: currently, wasmd redacts error messages due to concern of
+    /// non-determinism: https://github.com/CosmWasm/wasmd/issues/759
+    ///
+    /// Therefore, although we return a String here, in reality it will only
+    /// include the error code, not the message. It will look something like
+    /// this:
+    ///
+    /// ```json
+    /// {"error":"codespace: wasm, code: 5"}
+    /// ```
     Error(String),
 }
 
