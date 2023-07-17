@@ -1,8 +1,8 @@
 package types
 
-type CoreInstantiateMsg struct {
-	AccountCodeID      uint64 `json:"account_code_id"`
-	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
+type CoreConfig struct {
+	DefaultAccountCodeID uint64 `json:"default_account_code_id"`
+	DefaultTimeoutSecs   uint64 `json:"default_timeout_secs"`
 }
 
 type CoreExecuteMsg struct {
@@ -26,11 +26,6 @@ type CoreQueryMsg struct {
 }
 
 type ConfigQuery struct{}
-
-type ConfigResponse struct {
-	AccountCodeID      uint64 `json:"account_code_id"`
-	DefaultTimeoutSecs uint64 `json:"default_timeout_secs"`
-}
 
 type DenomHashQuery struct {
 	Trace TraceItem `json:"trace"`

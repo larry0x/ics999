@@ -39,7 +39,9 @@ func (suite *testSuite) TestMultipleTransfers() {
 			},
 		},
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 		{
 			Transfer: &types.TransferAction{
@@ -264,7 +266,9 @@ func (suite *testSuite) TestSwap() {
 
 	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 		{
 			Transfer: &types.TransferAction{

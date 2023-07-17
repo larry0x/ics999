@@ -9,18 +9,17 @@ use crate::{
     controller,
     error::{Error, Result},
     handshake, host,
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    msg::{Config, ExecuteMsg, QueryMsg},
     query,
-    state::{ACCOUNT_CODE_ID, DEFAULT_TIMEOUT_SECS},
+    state::CONFIG,
     AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
 };
 
 #[entry_point]
-pub fn instantiate(deps: DepsMut, _: Env, _: MessageInfo, msg: InstantiateMsg) -> Result<Response> {
+pub fn instantiate(deps: DepsMut, _: Env, _: MessageInfo, cfg: Config) -> Result<Response> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    ACCOUNT_CODE_ID.save(deps.storage, &msg.account_code_id)?;
-    DEFAULT_TIMEOUT_SECS.save(deps.storage, &msg.default_timeout_secs)?;
+    CONFIG.save(deps.storage, &cfg)?;
 
     Ok(Response::new())
 }

@@ -20,7 +20,9 @@ func (suite *testSuite) TestRegisterAccount() {
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
 	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 	})
 	require.NoError(suite.T(), err)
@@ -61,7 +63,9 @@ func (suite *testSuite) TestRegisterAccount() {
 	// attempt to register account again, should fail
 	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 	})
 	require.NoError(suite.T(), err)
@@ -74,7 +78,9 @@ func (suite *testSuite) TestExecuteWasm() {
 	// test 1 - register account and increment counter once in a single packet
 	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 		{
 			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
@@ -149,7 +155,9 @@ func (suite *testSuite) TestQuery() {
 	// note: we require an ICA to be registered even for queries
 	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 		{
 			Query: mustMarshalJSON(suite.T(), &wasmvmtypes.QueryRequest{
@@ -215,7 +223,9 @@ func (suite *testSuite) TestCallback() {
 	// register an account, increment the counter, and query the number
 	packet1, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
 		{
-			RegisterAccount: &types.RegisterAccountAction{},
+			RegisterAccount: &types.RegisterAccountAction{
+				Default: &types.RegisterAccountDefault{},
+			},
 		},
 		{
 			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{

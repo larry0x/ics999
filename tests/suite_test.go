@@ -82,9 +82,9 @@ func setupChain(t *testing.T, chain *wasmibctesting.TestChain, coins ...sdk.Coin
 	require.Equal(t, uint64(4), counterStoreRes.CodeID)
 
 	// instantiate one-core contract
-	coreInstantiateMsg, err := json.Marshal(&types.CoreInstantiateMsg{
-		AccountCodeID:      accountStoreRes.CodeID,
-		DefaultTimeoutSecs: 600, // 10 mins
+	coreInstantiateMsg, err := json.Marshal(&types.CoreConfig{
+		DefaultAccountCodeID: accountStoreRes.CodeID,
+		DefaultTimeoutSecs:   600, // 10 mins
 	})
 	require.NoError(t, err)
 	core := chain.InstantiateContract(coreStoreRes.CodeID, coreInstantiateMsg)

@@ -35,7 +35,17 @@ type TransferAction struct {
 }
 
 type RegisterAccountAction struct {
+	Default       *RegisterAccountDefault       `json:"default,omitempty"`
+	CustomFactory *RegisterAccountCustomFactory `json:"custom_factory,omitempty"`
+}
+
+type RegisterAccountDefault struct {
 	Salt []byte `json:"salt,omitempty"`
+}
+
+type RegisterAccountCustomFactory struct {
+	Address string `json:"address,omitempty"`
+	Data    []byte `json:"data,omitempty"`
 }
 
 // --------------------------------- PacketAck ---------------------------------
