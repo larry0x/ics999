@@ -3,7 +3,6 @@ use {
         error::{Error, Result},
         state::{ACCOUNTS, CONFIG, DENOM_TRACES},
         transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
-        utils::default_salt,
         AFTER_ACTION,
     },
     cosmwasm_schema::cw_serde,
@@ -18,6 +17,7 @@ use {
         Trace,
     },
     osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory,
+    sha2::{Digest, Sha256},
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");
@@ -73,7 +73,7 @@ impl Handler {
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
-        let host = ACCOUNTS.may_load(store, (&dest.channel_id, &controller))?;
+        let host = ACCOUNTS.may_load(store, (&dest.port_id, &dest.channel_id, &controller))?;
 
         // reverse the actions, so that we can use pop() to grab the 1st action
         actions.reverse();
@@ -253,7 +253,7 @@ impl Handler {
 
                         // if a salt is not provided, by default use:
                         // sha256(channel_id_bytes | controller_addr_bytes)
-                        let salt = salt.unwrap_or_else(|| default_salt(&self.dest.channel_id, &self.controller));
+                        let salt = salt.unwrap_or_else(|| self.default_salt());
 
                         // load the one-account contract's code ID and checksum, which is
                         // used in Instantiate2 to determine the contract address
@@ -268,7 +268,11 @@ impl Handler {
                         )?;
                         let addr = deps.api.addr_humanize(&addr_raw)?;
 
-                        ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
+                        ACCOUNTS.save(
+                            deps.storage,
+                            (&self.dest.port_id, &self.dest.channel_id, &self.controller),
+                            &addr,
+                        )?;
 
                         self.results.push(ActionResult::RegisterAccount {
                             address: addr.to_string(),
@@ -397,7 +401,11 @@ impl Handler {
 
             let addr = deps.api.addr_validate(&factory_res.host)?;
 
-            ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
+            ACCOUNTS.save(
+                deps.storage,
+                (&self.dest.port_id, &self.dest.channel_id, &self.controller),
+                &addr,
+            )?;
 
             self.results.push(ActionResult::RegisterAccount {
                 address: addr.to_string(),
@@ -413,5 +421,19 @@ impl Handler {
         Response::new()
             .add_attribute("method", "handle_next_action")
             .add_attribute("actions_left", self.pending_actions.len().to_string())
+    }
+
+    /// Generate a salt to be used in Instantiate2, if the user does not provide one.
+    ///
+    /// The salt is sha256 hash of the connection ID and controller address.
+    /// This entures:
+    /// - unique for each {port_id, channel_id, controller} pair
+    /// - not exceed the 64 byte max length
+    fn default_salt(&self) -> Binary {
+        let mut hasher = Sha256::new();
+        hasher.update(self.dest.port_id.as_bytes());
+        hasher.update(self.dest.channel_id.as_bytes());
+        hasher.update(self.controller.as_bytes());
+        hasher.finalize().to_vec().into()
     }
 }

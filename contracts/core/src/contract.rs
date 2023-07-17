@@ -3,7 +3,7 @@ use {
         controller,
         error::{Error, Result},
         handshake, host,
-        msg::{Config, ExecuteMsg, QueryMsg},
+        msg::{AccountKey, Config, ExecuteMsg, QueryMsg},
         query,
         state::CONFIG,
         AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
@@ -79,10 +79,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         } => to_binary(&query::denom_traces(deps, start_after, limit)?),
-        QueryMsg::Account {
-            channel_id,
+        QueryMsg::Account(AccountKey {
+            src,
             controller,
-        } => to_binary(&query::account(deps, channel_id, controller)?),
+        }) => to_binary(&query::account(deps, src, controller)?),
         QueryMsg::Accounts {
             start_after,
             limit,
@@ -130,11 +130,11 @@ pub fn ibc_channel_close(_: DepsMut, _: Env, msg: IbcChannelCloseMsg) -> Result<
 
 #[entry_point]
 pub fn ibc_packet_receive(
-    deps: DepsMut,
-    env:  Env,
-    msg:  IbcPacketReceiveMsg,
+    _:   DepsMut,
+    env: Env,
+    msg: IbcPacketReceiveMsg,
 ) -> Result<IbcReceiveResponse> {
-    host::packet_receive(deps, env, msg.packet)
+    host::packet_receive(env, msg.packet)
 }
 
 #[entry_point]

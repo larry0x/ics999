@@ -3,11 +3,11 @@ use {
         error::{Error, Result},
         state::{ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
         transfer::{burn, escrow, mint, release, TraceItem},
-        utils::{query_port, Coins},
+        utils::Coins,
         AFTER_CALLBACK,
     },
     cosmwasm_std::{
-        from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint,
+        from_slice, to_binary, Binary, Coin, DepsMut, Env, IbcBasicResponse,
         IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
     },
     ics999::{Action, CallbackMsg, PacketData, PacketOutcome, SenderExecuteMsg, Trace},
@@ -28,7 +28,7 @@ pub fn act(
     let mut traces: Vec<Trace> = vec![];
 
     // find the current chain's port and channel IDs
-    let localhost = localhost(deps.as_ref(), &connection_id)?;
+    let localhost = ACTIVE_CHANNELS.load(deps.storage, &connection_id)?;
 
     // go through all transfer actions, either escrow or burn the coins based on
     // whether the current chain is the source or the sink.
@@ -173,13 +173,6 @@ fn trace_of(store: &dyn Storage, denom: &str) -> Result<TraceItem> {
         .unwrap_or_else(|| TraceItem::new(denom)))
 }
 
-fn localhost(deps: Deps, connection_id: &str) -> Result<IbcEndpoint> {
-    Ok(IbcEndpoint {
-        port_id: query_port(&deps.querier)?,
-        channel_id: ACTIVE_CHANNELS.load(deps.storage, connection_id)?,
-    })
-}
-
 fn should_refund(outcome: &PacketOutcome) -> bool {
     match outcome {
         // packet timed out -- refund
@@ -199,7 +192,7 @@ fn should_refund(outcome: &PacketOutcome) -> bool {
 mod tests {
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Uint128,
+        IbcEndpoint, Uint128,
     };
 
     use crate::msg::Config;
@@ -303,14 +296,14 @@ mod tests {
             let mut deps = mock_dependencies();
 
             let mock_connection_id = "connection-0";
-            let mock_active_channel_id = "channel-0";
+            let mock_active_channel = IbcEndpoint { port_id: "port-0".into(), channel_id: "channel-0".into() };
             let mock_cfg = Config { default_account_code_id: 1, default_timeout_secs: 300 };
 
             CONFIG
                 .save(deps.as_mut().storage, &mock_cfg)
                 .unwrap();
             ACTIVE_CHANNELS
-                .save(deps.as_mut().storage, mock_connection_id, &mock_active_channel_id.into())
+                .save(deps.as_mut().storage, mock_connection_id, &mock_active_channel)
                 .unwrap();
 
             let result = act(

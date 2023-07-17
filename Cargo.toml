@@ -3,7 +3,7 @@ resolver = "2"
 members  = [
   "contracts/account",
   "contracts/core",
-  "contracts/mocks/*",
+  # "contracts/mocks/*",
   "packages/*",
 ]
 

@@ -45,7 +45,7 @@ pub fn open_connect(
 ) -> Result<IbcBasicResponse> {
     validate_order_and_version(&channel.order, &channel.version, counterparty_version)?;
 
-    ACTIVE_CHANNELS.save(deps.storage, &channel.connection_id, &channel.endpoint.channel_id)?;
+    ACTIVE_CHANNELS.save(deps.storage, &channel.connection_id, &channel.endpoint)?;
 
     Ok(IbcBasicResponse::new()
         .add_attribute("method", "open_connect")
@@ -181,7 +181,14 @@ mod tests {
             let channel = mock_ibc_channel();
 
             ACTIVE_CHANNELS
-                .save(deps.as_mut().storage, &channel.connection_id, &"channel-123".into())
+                .save(
+                    deps.as_mut().storage,
+                    &channel.connection_id,
+                    &IbcEndpoint {
+                        port_id: "port-123".into(),
+                        channel_id: "channel-123".into(),
+                    },
+                )
                 .unwrap();
 
             let err = open_init(deps.as_mut(), channel).unwrap_err();
@@ -216,7 +223,7 @@ mod tests {
         assert!(res.messages.is_empty());
 
         let active_channel = ACTIVE_CHANNELS.load(deps.as_ref().storage, &channel.connection_id).unwrap();
-        assert_eq!(active_channel, channel.endpoint.channel_id);
+        assert_eq!(active_channel, channel.endpoint);
     }
 
     #[test]

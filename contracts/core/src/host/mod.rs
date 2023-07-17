@@ -2,7 +2,7 @@ mod handler;
 
 use {
     self::handler::Handler,
-    crate::{error::Result, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS},
+    crate::{error::Result, msg::ExecuteMsg, AFTER_ALL_ACTIONS},
     cosmwasm_std::{
         from_slice, to_binary, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
         SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
@@ -11,10 +11,7 @@ use {
     ics999::{Action, PacketAck, PacketData, Trace},
 };
 
-pub fn packet_receive(deps: DepsMut, env: Env, packet: IbcPacket) -> Result<IbcReceiveResponse> {
-    // find the connection ID corresponding to the sender channel
-    let connection_id = connection_of_channel(&deps.querier, &packet.dest.channel_id)?;
-
+pub fn packet_receive(env: Env, packet: IbcPacket) -> Result<IbcReceiveResponse> {
     // deserialize packet data
     let pd: PacketData = from_slice(&packet.data)?;
 
@@ -22,7 +19,7 @@ pub fn packet_receive(deps: DepsMut, env: Env, packet: IbcPacket) -> Result<IbcR
     // the ack will be added in after_all_actions reply (see below)
     Ok(IbcReceiveResponse::new()
         .add_attribute("method", "packet_receive")
-        .add_attribute("connection_id", connection_id)
+        .add_attribute("port_id", &packet.dest.port_id)
         .add_attribute("channel_id", &packet.dest.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
         .add_submessage(SubMsg::reply_always(

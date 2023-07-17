@@ -19,16 +19,9 @@ pub struct Config {
 pub enum ExecuteMsg {
     /// Send a packet consisting of a series of actions
     Act {
-        /// The connection via which to send the actions.
-        /// The contract will query the appropriate channel.
         connection_id: String,
-
-        /// One or more actions to take
-        actions: Vec<Action>,
-
-        /// How many seconds from how will the packet timeout
-        /// TODO: make this optional
-        timeout: Option<IbcTimeout>,
+        actions:       Vec<Action>,
+        timeout:       Option<IbcTimeout>,
     },
 
     /// Execute a series of actions received in a packet.
@@ -77,15 +70,12 @@ pub enum QueryMsg {
 
     /// Interchain account controlled by a specific controller
     #[returns(AccountResponse)]
-    Account {
-        channel_id: String,
-        controller: String,
-    },
+    Account(AccountKey),
 
     /// Iterate all interchain accounts
     #[returns(Vec<AccountResponse>)]
     Accounts {
-        start_after: Option<(String, String)>,
+        start_after: Option<AccountKey>,
         limit:       Option<u32>,
     },
 
@@ -109,8 +99,14 @@ pub struct DenomHashResponse {
 }
 
 #[cw_serde]
+pub struct AccountKey {
+    pub src:        IbcEndpoint,
+    pub controller: String,
+}
+
+#[cw_serde]
 pub struct AccountResponse {
-    pub channel_id: String,
+    pub src:        IbcEndpoint,
     pub controller: String,
     pub address:    String,
 }
@@ -118,5 +114,5 @@ pub struct AccountResponse {
 #[cw_serde]
 pub struct ActiveChannelResponse {
     pub connection_id: String,
-    pub channel_id:    String,
+    pub endpoint:      IbcEndpoint,
 }
