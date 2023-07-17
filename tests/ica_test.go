@@ -32,7 +32,8 @@ func (suite *testSuite) TestRegisterAccount() {
 	// returned in the packet ack
 	accountAddr, err := queryAccount(
 		suite.chainB,
-		suite.pathAB.EndpointA.ChannelID,
+		suite.pathAB.EndpointB.ChannelConfig.PortID,
+		suite.pathAB.EndpointB.ChannelID,
 		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)

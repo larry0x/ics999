@@ -243,13 +243,13 @@ func act(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*ch
 	return packet, ack, nil
 }
 
-func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddress, error) {
+func queryAccount(chain *testChain, portID, channelID, controller string) (sdk.AccAddress, error) {
 	accountRes := types.AccountResponse{}
 	if err := chain.SmartQuery(
 		chain.coreAddr.String(),
 		types.CoreQueryMsg{
-			Account: &types.AccountQuery{
-				ChannelID:  channelID,
+			Account: &types.AccountKey{
+				Src:        wasmvmtypes.IBCEndpoint{PortID: portID, ChannelID: channelID},
 				Controller: controller,
 			},
 		},

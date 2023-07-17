@@ -98,6 +98,7 @@ func (suite *testSuite) TestRegisterCustomFactory() {
 			// returned in the packet ack
 			accountAddr, err := queryAccount(
 				suite.chainB,
+				suite.pathAB.EndpointB.ChannelConfig.PortID,
 				suite.pathAB.EndpointB.ChannelID,
 				suite.chainA.senderAddr.String(),
 			)
