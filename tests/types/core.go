@@ -8,11 +8,11 @@ type CoreConfig struct {
 }
 
 type CoreExecuteMsg struct {
-	Act    *Act    `json:"act,omitempty"`
-	Handle *Handle `json:"handle,omitempty"`
+	Dispatch *Dispatch `json:"dispatch,omitempty"`
+	Handle   *Handle   `json:"handle,omitempty"`
 }
 
-type Act struct {
+type Dispatch struct {
 	ConnectionID string                  `json:"connection_id"`
 	Actions      []Action                `json:"actions"`
 	Timeout      *wasmvmtypes.IBCTimeout `json:"timeout,omitempty"`

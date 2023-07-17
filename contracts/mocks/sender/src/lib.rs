@@ -104,7 +104,7 @@ pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdRes
                 .add_attribute("num_actions", actions.len().to_string())
                 .add_message(WasmMsg::Execute {
                     contract_addr: one_core_addr.into(),
-                    msg: to_binary(&one_core::msg::ExecuteMsg::Act {
+                    msg: to_binary(&one_core::msg::ExecuteMsg::Dispatch {
                         connection_id,
                         actions,
                         timeout: None, // use the default timeout set by one-core

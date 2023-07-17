@@ -28,7 +28,7 @@ pub fn instantiate(deps: DepsMut, _: Env, _: MessageInfo, cfg: Config) -> Result
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> Result<Response> {
     match msg {
-        ExecuteMsg::Act {
+        ExecuteMsg::Dispatch {
             connection_id,
             actions,
             timeout,
@@ -37,7 +37,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> R
                 return Err(Error::EmptyActionQueue);
             }
 
-            controller::act(deps, env, info, connection_id, actions, timeout)
+            controller::dispatch(deps, env, info, connection_id, actions, timeout)
         },
         ExecuteMsg::Handle {
             counterparty_endpoint,

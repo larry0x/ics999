@@ -207,7 +207,7 @@ func reversePath(path *wasmibctesting.Path) *wasmibctesting.Path {
 	}
 }
 
-func act(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
+func send(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
 	// compose the executeMsg
 	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
 		Send: &types.Send{

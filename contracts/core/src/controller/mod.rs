@@ -13,7 +13,7 @@ use {
     ics999::{Action, CallbackMsg, ControllerExecuteMsg, PacketData, PacketOutcome, Trace},
 };
 
-pub fn act(
+pub fn dispatch(
     deps:          DepsMut,
     env:           Env,
     info:          MessageInfo,
@@ -79,6 +79,7 @@ pub fn act(
     };
 
     Ok(Response::new()
+        .add_attribute("method", "dispatch")
         .add_attributes(attrs)
         .add_messages(msgs)
         .add_message(IbcMsg::SendPacket {
@@ -306,7 +307,7 @@ mod tests {
                 .save(deps.as_mut().storage, mock_connection_id, &mock_active_channel)
                 .unwrap();
 
-            let result = act(
+            let result = dispatch(
                 deps.as_mut(),
                 mock_env(),
                 mock_info("larry", &testcase.sending_funds),

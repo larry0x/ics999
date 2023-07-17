@@ -20,7 +20,7 @@ pub enum ExecuteMsg {
     // ----------------------- USED ON CONTROLLER CHAIN ------------------------
 
     /// Send a packet consisting of a series of actions
-    Act {
+    Dispatch {
         connection_id: String,
         actions:       Vec<Action>,
         timeout:       Option<IbcTimeout>,

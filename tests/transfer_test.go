@@ -23,7 +23,7 @@ var (
 func (suite *testSuite) TestMultipleTransfers() {
 	// the first two transfers we specify a recipient
 	// the other two we don't specify a recipient; should default to the ICA
-	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:     "uastro",
@@ -101,7 +101,7 @@ func (suite *testSuite) TestSequentialTransfers() {
 	)
 
 	// chainA --> chainB
-	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:     "uastro",
@@ -114,7 +114,7 @@ func (suite *testSuite) TestSequentialTransfers() {
 	requirePacketSuccess(suite.T(), ack)
 
 	// chainB --> chainC
-	_, ack, err = act(suite.chainB, suite.pathBC, []types.Action{
+	_, ack, err = send(suite.chainB, suite.pathBC, []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:     astroB,
@@ -164,7 +164,7 @@ func (suite *testSuite) TestSequentialTransfers() {
 	})
 
 	// chainC --> chainB
-	_, ack, err = act(suite.chainC, reversePath(suite.pathBC), []types.Action{
+	_, ack, err = send(suite.chainC, reversePath(suite.pathBC), []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:     astroC,
@@ -189,7 +189,7 @@ func (suite *testSuite) TestSequentialTransfers() {
 func (suite *testSuite) TestRefund() {
 	// attempt to transfer tokens without specifying a recipient while not having
 	// an ICA already registered. should fail
-	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Transfer: &types.TransferAction{
 				Denom:  "uastro",
@@ -249,7 +249,7 @@ func (suite *testSuite) TestSwap() {
 	require.NoError(suite.T(), err)
 
 	sendBackMsg, err := json.Marshal(&types.CoreExecuteMsg{
-		Act: &types.Act{
+		Dispatch: &types.Dispatch{
 			ConnectionID: suite.pathAB.EndpointB.ConnectionID,
 			Actions: []types.Action{
 				{
@@ -264,7 +264,7 @@ func (suite *testSuite) TestSwap() {
 	})
 	require.NoError(suite.T(), err)
 
-	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},

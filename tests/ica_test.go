@@ -18,7 +18,7 @@ import (
 // configuration.
 func (suite *testSuite) TestRegisterAccount() {
 	// invoke ExecuteMsg::Act on chainA with a single action - RegisterAccount
-	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack1, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},
@@ -62,7 +62,7 @@ func (suite *testSuite) TestRegisterAccount() {
 	)
 
 	// attempt to register account again, should fail
-	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack2, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},
@@ -77,7 +77,7 @@ func (suite *testSuite) TestRegisterAccount() {
 // interchain account to increment its number.
 func (suite *testSuite) TestExecuteWasm() {
 	// test 1 - register account and increment counter once in a single packet
-	_, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack1, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},
@@ -108,7 +108,7 @@ func (suite *testSuite) TestExecuteWasm() {
 	requireNumberEqual(suite.T(), suite.chainB, 1)
 
 	// test 2 - increment the number more times in a single packet
-	_, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack2, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{
@@ -154,7 +154,7 @@ func (suite *testSuite) TestQuery() {
 	// we query the number (both raw and smart), increase the counter once, then
 	// query again
 	// note: we require an ICA to be registered even for queries
-	_, ack, err := act(suite.chainA, suite.pathAB, []types.Action{
+	_, ack, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},
@@ -222,7 +222,7 @@ func (suite *testSuite) TestQuery() {
 
 func (suite *testSuite) TestCallback() {
 	// register an account, increment the counter, and query the number
-	packet1, ack1, err := act(suite.chainA, suite.pathAB, []types.Action{
+	packet1, ack1, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			RegisterAccount: &types.RegisterAccountAction{
 				Default: &types.RegisterAccountDefault{},
@@ -258,7 +258,7 @@ func (suite *testSuite) TestCallback() {
 	requireOutcomeSuccess(suite.T(), suite.chainA, packet1.SourcePort, packet1.SourceChannel, packet1.Sequence)
 
 	// do the same thing but with an intentionally failed packet
-	packet2, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
+	packet2, ack2, err := send(suite.chainA, suite.pathAB, []types.Action{
 		{
 			Execute: mustMarshalJSON(suite.T(), &wasmvmtypes.CosmosMsg{
 				Wasm: &wasmvmtypes.WasmMsg{

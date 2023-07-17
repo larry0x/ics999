@@ -79,7 +79,7 @@ func (suite *testSuite) TestRegisterCustomFactory() {
 			expSuccess:  true,
 		},
 	} {
-		_, ack, err := act(tc.senderChain, tc.path, []types.Action{
+		_, ack, err := send(tc.senderChain, tc.path, []types.Action{
 			{
 				RegisterAccount: &types.RegisterAccountAction{
 					CustomFactory: &types.RegisterAccountCustomFactory{
