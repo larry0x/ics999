@@ -294,7 +294,14 @@ impl Handler {
                                 WasmMsg::Execute {
                                     contract_addr: address,
                                     msg: to_binary(&FactoryExecuteMsg::Ics999(FactoryMsg {
-                                        src:        self.src.clone(),
+                                        // here this may be a bit confusing, why we using dest as src?
+                                        // consider a packet from chainA --> chainB
+                                        // from the packet's perspective, chainA is src, chainB is dest
+                                        // but we're now on chainB, we use the portID/channelID on
+                                        // chainB as the "src"... make sense?
+                                        // we perhaps should change the naming of this variable to
+                                        // avoid the confusion
+                                        src:        self.dest.clone(),
                                         controller: self.controller.clone(),
                                         data,
                                     }))?,
