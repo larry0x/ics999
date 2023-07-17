@@ -1,11 +1,15 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, Uint128};
 
+// ---------------------------------- channel ----------------------------------
+
 /// Expected channel packet ordering rule
 pub const ORDER: IbcOrder = IbcOrder::Unordered;
 
 /// Expected channel version string
 pub const VERSION: &str = "ics999-1";
+
+// ---------------------------------- packet -----------------------------------
 
 /// ICS-999 packet data structure
 #[cw_serde]
@@ -21,36 +25,6 @@ pub struct PacketData {
     /// Receiver chain uses this to determine whether it's the sender or sink.
     /// Must include ALL tokens that are being transferred.
     pub traces: Vec<Trace>,
-}
-
-/// ICS-999 packet acknowledgement
-///
-/// Related: ICS-4 recommand acknowldgement envelop format:
-/// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
-#[cw_serde]
-pub enum PacketAck {
-    /// All actions were executed successfully. In this case, we return the
-    /// result of each action.
-    ///
-    /// ICS-4 recommends a raw binary here, but we choose to use `Vec<ActionResult>`
-    /// so that it's easier to consume by the sender contract
-    Results(Vec<ActionResult>),
-
-    /// One of the actions failed to execute. In this case, the entire queue of
-    /// actions is considered to be failed. We inform the sender contract of the
-    /// failure.
-    ///
-    /// NOTE: currently, wasmd redacts error messages due to concern of
-    /// non-determinism: https://github.com/CosmWasm/wasmd/issues/759
-    ///
-    /// Therefore, although we return a String here, in reality it will only
-    /// include the error code, not the message. It will look something like
-    /// this:
-    ///
-    /// ```json
-    /// {"error":"codespace: wasm, code: 5"}
-    /// ```
-    Error(String),
 }
 
 #[cw_serde]
@@ -119,6 +93,38 @@ pub enum RegisterOptions {
     },
 }
 
+// ------------------------------------ ack ------------------------------------
+
+/// ICS-999 packet acknowledgement
+///
+/// Related: ICS-4 recommand acknowldgement envelop format:
+/// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
+#[cw_serde]
+pub enum PacketAck {
+    /// All actions were executed successfully. In this case, we return the
+    /// result of each action.
+    ///
+    /// ICS-4 recommends a raw binary here, but we choose to use `Vec<ActionResult>`
+    /// so that it's easier to consume by the sender contract
+    Results(Vec<ActionResult>),
+
+    /// One of the actions failed to execute. In this case, the entire queue of
+    /// actions is considered to be failed. We inform the sender contract of the
+    /// failure.
+    ///
+    /// NOTE: currently, wasmd redacts error messages due to concern of
+    /// non-determinism: https://github.com/CosmWasm/wasmd/issues/759
+    ///
+    /// Therefore, although we return a String here, in reality it will only
+    /// include the error code, not the message. It will look something like
+    /// this:
+    ///
+    /// ```json
+    /// {"error":"codespace: wasm, code: 5"}
+    /// ```
+    Error(String),
+}
+
 #[cw_serde]
 pub enum ActionResult {
     /// Result of a successfully executed `transfer` action.
@@ -154,6 +160,8 @@ pub enum ActionResult {
     },
 }
 
+// ----------------------------------- trace -----------------------------------
+
 /// Trace includes the token's original denom and the path it had travelled to
 /// arrive at the current chain.
 ///
@@ -182,6 +190,8 @@ pub struct Trace {
     pub path: Vec<IbcEndpoint>,
 }
 
+// --------------------------- third party: factory ----------------------------
+
 #[cw_serde]
 pub enum FactoryExecuteMsg {
     Ics999(FactoryMsg),
@@ -198,6 +208,8 @@ pub struct FactoryMsg {
 pub struct FactoryResponse {
     pub host: String,
 }
+
+// ---------------------------- third party: sender ----------------------------
 
 /// If the sender contract wishes to receive a callback after the completion of
 /// a packet lifecycle, it must implement this execute message.
