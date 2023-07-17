@@ -1,13 +1,13 @@
-use cosmwasm_std::{Deps, StdResult};
-use cw_paginate::paginate_map;
-use cw_storage_plus::Bound;
-
-use ics999::Trace;
-
-use crate::{
-    msg::{AccountResponse, ActiveChannelResponse, Config, DenomHashResponse},
-    state::{ACCOUNTS, ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
-    transfer::TraceItem,
+use {
+    crate::{
+        msg::{AccountResponse, ActiveChannelResponse, Config, DenomHashResponse},
+        state::{ACCOUNTS, ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
+        transfer::TraceItem,
+    },
+    cosmwasm_std::{Deps, StdResult},
+    cw_paginate::paginate_map,
+    cw_storage_plus::Bound,
+    ics999::Trace,
 };
 
 pub fn config(deps: Deps) -> StdResult<Config> {

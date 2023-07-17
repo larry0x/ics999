@@ -1,11 +1,12 @@
 mod coins;
 
-use cosmwasm_std::{
-    Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest,
+use {
+    crate::error::{Error, Result},
+    cosmwasm_std::{
+        Binary, ChannelResponse, IbcQuery, PortIdResponse, QuerierWrapper, QueryRequest,
+    },
+    sha2::{Digest, Sha256},
 };
-use sha2::{Digest, Sha256};
-
-use crate::error::{Error, Result};
 
 pub use self::coins::Coins;
 

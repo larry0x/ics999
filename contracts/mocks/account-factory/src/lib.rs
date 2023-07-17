@@ -1,11 +1,13 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Empty, Env, IbcEndpoint,
-    MessageInfo, Reply, Response, StdError, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+use {
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{
+        entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Empty, Env, IbcEndpoint,
+        MessageInfo, Reply, Response, StdError, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+    },
+    cw_storage_plus::Item,
+    cw_utils::{parse_instantiate_response_data, ParseReplyError},
+    ics999::{FactoryExecuteMsg, FactoryMsg, FactoryResponse},
 };
-use cw_storage_plus::Item;
-use cw_utils::{parse_instantiate_response_data, ParseReplyError};
-use ics999::{FactoryExecuteMsg, FactoryMsg, FactoryResponse};
 
 pub const CONFIG: Item<Config> = Item::new("cfg");
 

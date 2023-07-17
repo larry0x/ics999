@@ -1,9 +1,9 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{HexBinary, IbcEndpoint, IbcTimeout};
-
-use ics999::{Action, Trace};
-
-use crate::transfer::TraceItem;
+use {
+    crate::transfer::TraceItem,
+    cosmwasm_schema::{cw_serde, QueryResponses},
+    cosmwasm_std::{HexBinary, IbcEndpoint, IbcTimeout},
+    ics999::{Action, Trace},
+};
 
 #[cw_serde]
 pub struct Config {

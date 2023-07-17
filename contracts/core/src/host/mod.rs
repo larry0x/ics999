@@ -1,16 +1,15 @@
 mod handler;
 
-use cosmwasm_std::{
-    from_slice, to_binary, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
-    SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+use {
+    self::handler::Handler,
+    crate::{error::Result, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS},
+    cosmwasm_std::{
+        from_slice, to_binary, DepsMut, Env, IbcEndpoint, IbcPacket, IbcReceiveResponse, Response,
+        SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+    },
+    cw_utils::parse_execute_response_data,
+    ics999::{Action, PacketAck, PacketData, Trace},
 };
-use cw_utils::parse_execute_response_data;
-
-use ics999::{Action, PacketAck, PacketData, Trace};
-
-use crate::{error::Result, msg::ExecuteMsg, utils::connection_of_channel, AFTER_ALL_ACTIONS};
-
-use self::handler::Handler;
 
 pub fn packet_receive(deps: DepsMut, env: Env, packet: IbcPacket) -> Result<IbcReceiveResponse> {
     // find the connection ID corresponding to the sender channel

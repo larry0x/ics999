@@ -1,5 +1,7 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, Uint128};
+use {
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{Binary, IbcEndpoint, IbcOrder, Uint128},
+};
 
 // ---------------------------------- channel ----------------------------------
 

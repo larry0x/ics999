@@ -1,6 +1,7 @@
-use std::{collections::BTreeMap, fmt};
-
-use cosmwasm_std::{Coin, OverflowError, Uint128};
+use {
+    cosmwasm_std::{Coin, OverflowError, Uint128},
+    std::{collections::BTreeMap, fmt},
+};
 
 // denom => amount
 #[derive(Debug, Clone, PartialEq, Eq)]

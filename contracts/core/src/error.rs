@@ -1,7 +1,8 @@
-use cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError};
-use cw_utils::{ParseReplyError, PaymentError};
-
-use crate::utils::Coins;
+use {
+    crate::utils::Coins,
+    cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError},
+    cw_utils::{ParseReplyError, PaymentError},
+};
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {

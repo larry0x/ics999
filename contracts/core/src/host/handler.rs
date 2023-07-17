@@ -1,20 +1,23 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty, Env, IbcEndpoint,
-    QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery, from_binary,
-};
-use cw_storage_plus::Item;
-use cw_utils::parse_execute_response_data;
-use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
-
-use ics999::{Action, ActionResult, RegisterOptions, Trace, FactoryExecuteMsg, FactoryMsg, FactoryResponse};
-
-use crate::{
-    error::{Error, Result},
-    state::{ACCOUNTS, CONFIG, DENOM_TRACES},
-    transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
-    utils::default_salt,
-    AFTER_ACTION,
+use {
+    crate::{
+        error::{Error, Result},
+        state::{ACCOUNTS, CONFIG, DENOM_TRACES},
+        transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
+        utils::default_salt,
+        AFTER_ACTION,
+    },
+    cosmwasm_schema::cw_serde,
+    cosmwasm_std::{
+        from_binary, instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty,
+        Env, IbcEndpoint, QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
+    },
+    cw_storage_plus::Item,
+    cw_utils::parse_execute_response_data,
+    ics999::{
+        Action, ActionResult, FactoryExecuteMsg, FactoryMsg, FactoryResponse, RegisterOptions,
+        Trace,
+    },
+    osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory,
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");

@@ -1,10 +1,12 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    coins, entry_point, to_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult,
+use {
+    cosmwasm_schema::{cw_serde, QueryResponses},
+    cosmwasm_std::{
+        coins, entry_point, to_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+        StdError, StdResult,
+    },
+    cw_storage_plus::Item,
+    cw_utils::PaymentError,
 };
-use cw_storage_plus::Item;
-use cw_utils::PaymentError;
 
 pub const CONFIG: Item<Config> = Item::new("config");
 

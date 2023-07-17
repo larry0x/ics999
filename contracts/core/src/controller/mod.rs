@@ -1,15 +1,16 @@
-use cosmwasm_std::{
-    from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
-    IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
-};
-use ics999::{Action, CallbackMsg, PacketData, PacketOutcome, SenderExecuteMsg, Trace};
-
-use crate::{
-    error::{Error, Result},
-    state::{ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
-    transfer::{burn, escrow, mint, release, TraceItem},
-    utils::{query_port, Coins},
-    AFTER_CALLBACK,
+use {
+    crate::{
+        error::{Error, Result},
+        state::{ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
+        transfer::{burn, escrow, mint, release, TraceItem},
+        utils::{query_port, Coins},
+        AFTER_CALLBACK,
+    },
+    cosmwasm_std::{
+        from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint,
+        IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
+    },
+    ics999::{Action, CallbackMsg, PacketData, PacketOutcome, SenderExecuteMsg, Trace},
 };
 
 pub fn act(

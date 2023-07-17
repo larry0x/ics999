@@ -1,12 +1,14 @@
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    coin, entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, OverflowError,
-    Response, StdResult, WasmMsg, IbcEndpoint,
+use {
+    cosmwasm_schema::{cw_serde, QueryResponses},
+    cosmwasm_std::{
+        coin, entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, IbcEndpoint, MessageInfo,
+        OverflowError, Response, StdResult, WasmMsg,
+    },
+    cw_paginate::paginate_map,
+    cw_storage_plus::{Bound, Item, Map},
+    ics999::{Action, CallbackMsg, PacketOutcome},
+    one_core::utils::Coins,
 };
-use cw_paginate::paginate_map;
-use cw_storage_plus::{Bound, Item, Map};
-use ics999::{Action, CallbackMsg, PacketOutcome};
-use one_core::utils::Coins;
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
 

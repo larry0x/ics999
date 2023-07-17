@@ -1,9 +1,10 @@
-use cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper};
-use osmosis_std::types::{
-    cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
+use {
+    crate::error::{Error, Result},
+    cosmwasm_std::{attr, Attribute, BankMsg, Coin, CosmosMsg, QuerierWrapper},
+    osmosis_std::types::{
+        cosmos::base::v1beta1::Coin as ProtoCoin, osmosis::tokenfactory::v1beta1 as tokenfactory,
+    },
 };
-
-use crate::error::{Error, Result};
 
 pub fn mint(
     sender: impl Into<String> + Clone,

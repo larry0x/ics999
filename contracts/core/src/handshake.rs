@@ -1,13 +1,13 @@
-use cosmwasm_std::{
-    DepsMut, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse, IbcOrder,
-    Storage,
-};
-
-use ics999;
-
-use crate::{
-    error::{Error, Result},
-    state::ACTIVE_CHANNELS,
+use {
+    crate::{
+        error::{Error, Result},
+        state::ACTIVE_CHANNELS,
+    },
+    cosmwasm_std::{
+        DepsMut, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg, IbcChannelOpenResponse,
+        IbcOrder, Storage,
+    },
+    ics999,
 };
 
 pub fn open_init(

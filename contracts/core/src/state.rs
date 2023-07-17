@@ -1,7 +1,8 @@
-use cosmwasm_std::Addr;
-use cw_storage_plus::{Item, Map};
-
-use crate::{msg::Config, transfer::TraceItem};
+use {
+    crate::{msg::Config, transfer::TraceItem},
+    cosmwasm_std::Addr,
+    cw_storage_plus::{Item, Map},
+};
 
 pub const CONFIG: Item<Config> = Item::new("cfg");
 

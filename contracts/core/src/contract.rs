@@ -1,18 +1,19 @@
-use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
-    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
-    StdResult,
-};
-
-use crate::{
-    controller,
-    error::{Error, Result},
-    handshake, host,
-    msg::{Config, ExecuteMsg, QueryMsg},
-    query,
-    state::CONFIG,
-    AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
+use {
+    crate::{
+        controller,
+        error::{Error, Result},
+        handshake, host,
+        msg::{Config, ExecuteMsg, QueryMsg},
+        query,
+        state::CONFIG,
+        AFTER_ACTION, AFTER_ALL_ACTIONS, AFTER_CALLBACK, CONTRACT_NAME, CONTRACT_VERSION,
+    },
+    cosmwasm_std::{
+        entry_point, to_binary, Binary, Deps, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+        IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg,
+        IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, MessageInfo, Reply, Response,
+        StdResult,
+    },
 };
 
 #[entry_point]
