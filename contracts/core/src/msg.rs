@@ -6,9 +6,9 @@ use ics999::{Action, Trace};
 use crate::transfer::TraceItem;
 
 #[cw_serde]
-pub struct InstantiateMsg {
+pub struct Config {
     /// Code ID of the one-account contract
-    pub account_code_id: u64,
+    pub default_account_code_id: u64,
 
     /// The default timeout (in seconds) if the user does not provide a timeout
     /// timestamp
@@ -53,7 +53,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     /// Contract configuration
-    #[returns(ConfigResponse)]
+    #[returns(Config)]
     Config {},
 
     /// Compute the denom hash of a given denom trace
@@ -101,12 +101,6 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit:       Option<u32>,
     },
-}
-
-#[cw_serde]
-pub struct ConfigResponse {
-    pub account_code_id:      u64,
-    pub default_timeout_secs: u64,
 }
 
 #[cw_serde]

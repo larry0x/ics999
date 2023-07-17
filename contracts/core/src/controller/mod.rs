@@ -7,7 +7,7 @@ use ics999::{Action, PacketAck, PacketData, SenderExecuteMsg, Trace};
 
 use crate::{
     error::{Error, Result},
-    state::{ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
+    state::{ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
     transfer::{burn, escrow, mint, release, TraceItem},
     utils::{query_port, Coins},
     AFTER_CALLBACK,
@@ -72,8 +72,8 @@ pub fn act(
     // if the user does not specify a timeout, we use the default
     let timeout = match timeout {
         None => {
-            let default_secs = DEFAULT_TIMEOUT_SECS.load(deps.storage)?;
-            IbcTimeout::with_timestamp(env.block.time.plus_seconds(default_secs))
+            let cfg = CONFIG.load(deps.storage)?;
+            IbcTimeout::with_timestamp(env.block.time.plus_seconds(cfg.default_timeout_secs))
         },
         Some(to) => to,
     };
@@ -200,6 +200,7 @@ mod tests {
         Uint128,
     };
 
+    use crate::msg::Config;
     use super::*;
 
     #[test]
@@ -301,10 +302,10 @@ mod tests {
 
             let mock_connection_id = "connection-0";
             let mock_active_channel_id = "channel-0";
-            let mock_default_timeout_secs = 300;
+            let mock_cfg = Config { default_account_code_id: 1, default_timeout_secs: 300 };
 
-            DEFAULT_TIMEOUT_SECS
-                .save(deps.as_mut().storage, &mock_default_timeout_secs)
+            CONFIG
+                .save(deps.as_mut().storage, &mock_cfg)
                 .unwrap();
             ACTIVE_CHANNELS
                 .save(deps.as_mut().storage, mock_connection_id, &mock_active_channel_id.into())

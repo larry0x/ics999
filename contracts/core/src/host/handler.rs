@@ -11,7 +11,7 @@ use ics999::{Action, ActionResult, RegisterOptions, Trace, FactoryExecuteMsg, Fa
 
 use crate::{
     error::{Error, Result},
-    state::{ACCOUNTS, ACCOUNT_CODE_ID, DENOM_TRACES},
+    state::{ACCOUNTS, CONFIG, DENOM_TRACES},
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     utils::default_salt,
     AFTER_ACTION,
@@ -255,8 +255,8 @@ impl Handler {
 
                         // load the one-account contract's code ID and checksum, which is
                         // used in Instantiate2 to determine the contract address
-                        let code_id = ACCOUNT_CODE_ID.load(deps.storage)?;
-                        let code_res = deps.querier.query_wasm_code_info(code_id)?;
+                        let cfg = CONFIG.load(deps.storage)?;
+                        let code_res = deps.querier.query_wasm_code_info(cfg.default_account_code_id)?;
 
                         // predict the contract address
                         let addr_raw = instantiate2_address(
@@ -278,11 +278,11 @@ impl Handler {
                             .add_attribute("action", "register_account")
                             .add_submessage(SubMsg::reply_on_success(
                                 WasmMsg::Instantiate2 {
-                                    admin: Some(env.contract.address.into()),
-                                    code_id,
-                                    label: format!("one-account/{}/{}", self.dest.channel_id, self.controller),
-                                    msg: to_binary(&Empty {})?,
-                                    funds: vec![],
+                                    code_id: cfg.default_account_code_id,
+                                    msg:     to_binary(&Empty {})?,
+                                    funds:   vec![],
+                                    admin:   Some(env.contract.address.into()),
+                                    label:   format!("one-account/{}/{}", self.dest.channel_id, self.controller),
                                     salt,
                                 },
                                 AFTER_ACTION,

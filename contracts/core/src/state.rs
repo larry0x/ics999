@@ -1,11 +1,9 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 
-use crate::transfer::TraceItem;
+use crate::{msg::Config, transfer::TraceItem};
 
-pub const ACCOUNT_CODE_ID: Item<u64> = Item::new("acc_cid");
-
-pub const DEFAULT_TIMEOUT_SECS: Item<u64> = Item::new("def_to_secs");
+pub const CONFIG: Item<Config> = Item::new("cfg");
 
 // (channel_id, controller_addr) => account_addr
 pub const ACCOUNTS: Map<(&str, &str), Addr> = Map::new("acct");

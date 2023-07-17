@@ -5,16 +5,13 @@ use cw_storage_plus::Bound;
 use ics999::Trace;
 
 use crate::{
-    msg::{AccountResponse, ActiveChannelResponse, ConfigResponse, DenomHashResponse},
-    state::{ACCOUNTS, ACCOUNT_CODE_ID, ACTIVE_CHANNELS, DEFAULT_TIMEOUT_SECS, DENOM_TRACES},
+    msg::{AccountResponse, ActiveChannelResponse, Config, DenomHashResponse},
+    state::{ACCOUNTS, ACTIVE_CHANNELS, CONFIG, DENOM_TRACES},
     transfer::TraceItem,
 };
 
-pub fn config(deps: Deps) -> StdResult<ConfigResponse> {
-    Ok(ConfigResponse {
-        account_code_id: ACCOUNT_CODE_ID.load(deps.storage)?,
-        default_timeout_secs: DEFAULT_TIMEOUT_SECS.load(deps.storage)?,
-    })
+pub fn config(deps: Deps) -> StdResult<Config> {
+    CONFIG.load(deps.storage)
 }
 
 pub fn denom_hash(trace: TraceItem) -> DenomHashResponse {
