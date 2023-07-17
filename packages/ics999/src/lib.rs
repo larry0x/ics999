@@ -194,6 +194,11 @@ pub struct FactoryMsg {
     pub data:       Option<Binary>,
 }
 
+#[cw_serde]
+pub struct FactoryResponse {
+    pub host: String,
+}
+
 /// If the sender contract wishes to receive a callback after the completion of
 /// a packet lifecycle, it must implement this execute message.
 #[cw_serde]

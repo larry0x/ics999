@@ -1,13 +1,13 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     instantiate2_address, to_binary, Addr, BankMsg, Binary, Coin, DepsMut, Empty, Env, IbcEndpoint,
-    QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery,
+    QueryRequest, Response, StdResult, Storage, SubMsg, WasmMsg, WasmQuery, from_binary,
 };
 use cw_storage_plus::Item;
-use cw_utils::{parse_execute_response_data, parse_instantiate_response_data};
+use cw_utils::parse_execute_response_data;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1 as tokenfactory;
 
-use ics999::{Action, ActionResult, RegisterOptions, Trace, FactoryExecuteMsg, FactoryMsg};
+use ics999::{Action, ActionResult, RegisterOptions, Trace, FactoryExecuteMsg, FactoryMsg, FactoryResponse};
 
 use crate::{
     error::{Error, Result},
@@ -379,18 +379,14 @@ impl Handler {
                 data,
             });
         } else if let Action::RegisterAccount(RegisterOptions::CustomFactory { .. }) = action {
-            // TODO: We could consider moving this into a separate reply_id
-            // assert we have data
-            let bin = data.ok_or(Error::FactoryResponseDataMissing)?;
+            let execute_res_bytes = data.ok_or(Error::FactoryResponseDataMissing)?;
+            let execute_res = parse_execute_response_data(&execute_res_bytes)?;
 
-            // We parse the response data from the custom factory (which is expected to be an MsgInstantiateContractResponse)
-            // to get the ICA address.
-            let account_address_str = parse_instantiate_response_data(&bin)?
-                .contract_address;
+            let factory_res_bytes = execute_res.data.ok_or(Error::FactoryResponseDataMissing)?;
+            let factory_res: FactoryResponse = from_binary(&factory_res_bytes)?;
 
-            let addr = deps.api.addr_validate(&account_address_str)?;
+            let addr = deps.api.addr_validate(&factory_res.host)?;
 
-            // save the address
             ACCOUNTS.save(deps.storage, (&self.dest.channel_id, &self.controller), &addr)?;
 
             self.results.push(ActionResult::RegisterAccount {

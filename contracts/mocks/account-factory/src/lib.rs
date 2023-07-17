@@ -1,10 +1,11 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    entry_point, from_binary, Binary, Deps, DepsMut, Empty, Env, IbcEndpoint, MessageInfo, Reply,
-    Response, StdError, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+    entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Empty, Env, IbcEndpoint,
+    MessageInfo, Reply, Response, StdError, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cw_storage_plus::Item;
-use ics999::{FactoryExecuteMsg, FactoryMsg};
+use cw_utils::{parse_instantiate_response_data, ParseReplyError};
+use ics999::{FactoryExecuteMsg, FactoryMsg, FactoryResponse};
 
 pub const CONFIG: Item<Config> = Item::new("cfg");
 
@@ -27,6 +28,9 @@ pub struct InstantiateData {
 pub enum Error {
     #[error(transparent)]
     Std(#[from] StdError),
+
+    #[error(transparent)]
+    ParseReply(#[from] ParseReplyError),
 
     #[error("sender is not ics999 core contract")]
     NotIcs999,
@@ -100,9 +104,15 @@ pub fn execute(
 pub fn reply(_: DepsMut, _: Env, reply: Reply) -> Result<Response> {
     match reply.id {
         AFTER_INSTANTIATE => {
-            let SubMsgResult::Ok(SubMsgResponse { data: Some(data), .. }) = reply.result else {
+            let SubMsgResult::Ok(SubMsgResponse { data: Some(instantiate_res_bytes), .. }) = reply.result else {
                 return Err(Error::MissingInstantiateResponse);
             };
+
+            let instantiate_res = parse_instantiate_response_data(&instantiate_res_bytes)?;
+
+            let data = to_binary(&FactoryResponse {
+                host: instantiate_res.contract_address,
+            })?;
 
             Ok(Response::new().set_data(data))
         },
