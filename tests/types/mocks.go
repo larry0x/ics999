@@ -6,7 +6,7 @@ import wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 
 type FactoryConfig struct {
 	OneCore           string                  `json:"one_core"`
-	AllowedSrc        wasmvmtypes.IBCEndpoint `json:"allowed_src"`
+	AllowedEndpoint   wasmvmtypes.IBCEndpoint `json:"allowed_endpoint"`
 	AllowedController string                  `json:"allowed_controller"`
 }
 
@@ -21,7 +21,7 @@ type SenderInstantiateMsg struct {
 	OneCore string `json:"one_core"`
 }
 
-type MockSenderExecuteMsg struct {
+type SenderExecuteMsg struct {
 	Send   *Send        `json:"send,omitempty"`
 	ICS999 *CallbackMsg `json:"ics999,omitempty"`
 }

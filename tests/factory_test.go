@@ -34,7 +34,7 @@ func (suite *testSuite) TestRegisterCustomFactory() {
 	factoryStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_account_factory.wasm")
 	factoryInstantiateMsg, err := json.Marshal(&types.FactoryConfig{
 		OneCore: suite.chainB.coreAddr.String(),
-		AllowedSrc: wasmvmtypes.IBCEndpoint{
+		AllowedEndpoint: wasmvmtypes.IBCEndpoint{
 			PortID:    suite.pathAB.EndpointB.ChannelConfig.PortID,
 			ChannelID: suite.pathAB.EndpointB.ChannelID,
 		},

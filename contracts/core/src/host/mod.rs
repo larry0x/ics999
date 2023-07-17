@@ -26,11 +26,11 @@ pub fn packet_receive(env: Env, packet: IbcPacket) -> Result<IbcReceiveResponse>
             WasmMsg::Execute {
                 contract_addr: env.contract.address.into(),
                 msg: to_binary(&ExecuteMsg::Handle {
-                    src:        packet.src,
-                    dest:       packet.dest,
-                    controller: pd.sender,
-                    actions:    pd.actions,
-                    traces:     pd.traces,
+                    counterparty_endpoint: packet.src,
+                    endpoint:              packet.dest,
+                    controller:            pd.controller,
+                    actions:               pd.actions,
+                    traces:                pd.traces,
                 })?,
                 funds: vec![],
             },

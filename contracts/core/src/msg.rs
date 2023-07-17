@@ -17,12 +17,16 @@ pub struct Config {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    // ----------------------- USED ON CONTROLLER CHAIN ------------------------
+
     /// Send a packet consisting of a series of actions
     Act {
         connection_id: String,
         actions:       Vec<Action>,
         timeout:       Option<IbcTimeout>,
     },
+
+    // ------------------------ USED ON THE HOST CHAIN -------------------------
 
     /// Execute a series of actions received in a packet.
     ///
@@ -34,11 +38,11 @@ pub enum ExecuteMsg {
     /// and no state changes from any action (even those that succeeded) will be
     /// committed.
     Handle {
-        src:        IbcEndpoint,
-        dest:       IbcEndpoint,
-        controller: String,
-        actions:    Vec<Action>,
-        traces:     Vec<Trace>,
+        counterparty_endpoint: IbcEndpoint,
+        endpoint:              IbcEndpoint,
+        controller:            String,
+        actions:               Vec<Action>,
+        traces:                Vec<Trace>,
     },
 }
 

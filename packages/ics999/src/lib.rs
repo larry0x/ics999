@@ -17,7 +17,7 @@ pub const VERSION: &str = "ics999-1";
 #[cw_serde]
 pub struct PacketData {
     /// The account who sends this packet
-    pub sender: String,
+    pub controller: String,
 
     /// Actions to take.
     /// The actions will be executed in order and atomically.
@@ -198,26 +198,26 @@ pub enum FactoryExecuteMsg {
 
 #[cw_serde]
 pub struct FactoryMsg {
-    pub src:        IbcEndpoint,
+    pub endpoint:   IbcEndpoint,
     pub controller: String,
     pub data:       Option<Binary>,
 }
 
 #[cw_serde]
 pub struct FactoryResponse {
-    pub host: String,
+    pub address: String,
 }
 
-// ---------------------------- third party: sender ----------------------------
+// -------------------------- third party: controller --------------------------
 
 #[cw_serde]
-pub enum SenderExecuteMsg {
+pub enum ControllerExecuteMsg {
     Ics999(CallbackMsg),
 }
 
 #[cw_serde]
 pub struct CallbackMsg {
-    pub dest:     IbcEndpoint,
+    pub endpoint: IbcEndpoint,
     pub sequence: u64,
     pub outcome:  PacketOutcome,
 }

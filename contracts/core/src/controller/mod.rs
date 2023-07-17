@@ -10,7 +10,7 @@ use {
         from_slice, to_binary, Binary, Coin, DepsMut, Env, IbcBasicResponse,
         IbcMsg, IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
     },
-    ics999::{Action, CallbackMsg, PacketData, PacketOutcome, SenderExecuteMsg, Trace},
+    ics999::{Action, CallbackMsg, ControllerExecuteMsg, PacketData, PacketOutcome, Trace},
 };
 
 pub fn act(
@@ -84,7 +84,7 @@ pub fn act(
         .add_message(IbcMsg::SendPacket {
             channel_id: localhost.channel_id,
             data: to_binary(&PacketData {
-                sender: info.sender.into(),
+                controller: info.sender.into(),
                 actions,
                 traces,
             })?,
@@ -123,9 +123,9 @@ pub fn packet_lifecycle_complete(
                 // if the tokens were escrowed, then release them
                 // if the tokens were burned, then mint them
                 if trace.sender_is_source(&packet.src) {
-                    release(coin, &packet_data.sender, &mut msgs, &mut attrs);
+                    release(coin, &packet_data.controller, &mut msgs, &mut attrs);
                 } else {
-                    mint(&env.contract.address, &packet_data.sender, coin,  &mut msgs, &mut attrs);
+                    mint(&env.contract.address, &packet_data.controller, coin,  &mut msgs, &mut attrs);
                 }
             }
         }
@@ -133,18 +133,18 @@ pub fn packet_lifecycle_complete(
 
     Ok(IbcBasicResponse::new()
         .add_attribute("method", "packet_lifecycle_complete")
+        .add_attribute("controller", &packet_data.controller)
         .add_attribute("port_id", &packet.src.port_id)
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
         .add_attribute("outcome", outcome.ty())
-        .add_attribute("sender", &packet_data.sender)
         .add_attributes(attrs)
         .add_messages(msgs)
         .add_submessage(SubMsg::reply_always(
             WasmMsg::Execute {
-                contract_addr: packet_data.sender,
-                msg: to_binary(&SenderExecuteMsg::Ics999(CallbackMsg {
-                    dest:     packet.src,
+                contract_addr: packet_data.controller,
+                msg: to_binary(&ControllerExecuteMsg::Ics999(CallbackMsg {
+                    endpoint: packet.src,
                     sequence: packet.sequence,
                     outcome,
                 }))?,

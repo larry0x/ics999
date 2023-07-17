@@ -40,8 +40,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> R
             controller::act(deps, env, info, connection_id, actions, timeout)
         },
         ExecuteMsg::Handle {
-            src,
-            dest,
+            counterparty_endpoint,
+            endpoint,
             controller,
             actions,
             traces,
@@ -50,7 +50,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> R
                 return Err(Error::Unauthorized);
             }
 
-            host::handle(deps, env, src, dest, controller, actions, traces)
+            host::handle(deps, env, counterparty_endpoint, endpoint, controller, actions, traces)
         },
     }
 }

@@ -18,9 +18,9 @@ const (
 // ---------------------------------- packet -----------------------------------
 
 type PacketData struct {
-	Sender  string   `json:"sender"`
-	Actions []Action `json:"actions"`
-	Traces  []Trace  `json:"traces"`
+	Controller string   `json:"controller"`
+	Actions    []Action `json:"actions"`
+	Traces     []Trace  `json:"traces"`
 }
 
 type Action struct {
@@ -111,9 +111,9 @@ type FactoryResponse struct {
 	Host string `json:"host"`
 }
 
-// ---------------------------- third party: sender ----------------------------
+// -------------------------- third party: controller --------------------------
 
-type SenderExecuteMsg struct {
+type ControllerExecuteMsg struct {
 	ICS999 *CallbackMsg `json:"ics999,omitempty"`
 }
 

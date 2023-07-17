@@ -30,57 +30,35 @@ const HANDLER: Item<Handler> = Item::new("handler");
 /// saved/loaded from the contract store.
 #[cw_serde]
 pub(super) struct Handler {
-    /// The chain where the packet was sent from, i.e. the controller chain
-    pub src: IbcEndpoint,
-
-    /// The current chain, i.e. the host chain
-    pub dest: IbcEndpoint,
-
-    /// The account who sent the packet on the sender chain
-    pub controller: String,
-
-    /// The interchain account controlled by the sender
-    pub host: Option<Addr>,
-
-    /// Traces of all tokens being transferred in the packet
-    pub traces: Vec<Trace>,
-
-    /// The action is to be executed at the current step.
-    /// None means all actions have finished executing.
-    pub action: Option<Action>,
-
-    /// The actions that are to be executed later, in reverse order.
-    pub pending_actions: Vec<Action>,
-
-    /// The results from executing the earlier actions
-    ///
-    /// At the end of each step, the response data is parsed and pushed into
-    /// this queue.
-    ///
-    /// Once all actions have finished executing, this enture queue is returned
-    /// in the packet acknowledgement.
-    pub results: Vec<ActionResult>,
+    counterparty_endpoint: IbcEndpoint,
+    endpoint:              IbcEndpoint,
+    controller:            String,
+    host:                  Option<Addr>,
+    traces:                Vec<Trace>,
+    action:                Option<Action>,
+    pending_actions:       Vec<Action>,
+    results:               Vec<ActionResult>,
 }
 
 impl Handler {
     pub fn create(
-        store:       &dyn Storage,
-        src:         IbcEndpoint,
-        dest:        IbcEndpoint,
-        controller:  String,
-        mut actions: Vec<Action>,
-        traces:      Vec<Trace>,
+        store:                 &dyn Storage,
+        counterparty_endpoint: IbcEndpoint,
+        endpoint:              IbcEndpoint,
+        controller:            String,
+        mut actions:           Vec<Action>,
+        traces:                Vec<Trace>,
     ) -> StdResult<Self> {
         // load the controller's ICA host, which may or may not have already
         // been instantiated
-        let host = ACCOUNTS.may_load(store, (&dest.port_id, &dest.channel_id, &controller))?;
+        let host = ACCOUNTS.may_load(store, (&endpoint.port_id, &endpoint.channel_id, &controller))?;
 
         // reverse the actions, so that we can use pop() to grab the 1st action
         actions.reverse();
 
         Ok(Self {
-            src,
-            dest,
+            counterparty_endpoint,
+            endpoint,
             controller,
             host,
             traces,
@@ -146,7 +124,7 @@ impl Handler {
                     // their interchain account
                     // error if the sender does not already own an ICA
                     None => self.host.clone().ok_or_else(|| Error::AccountNotFound {
-                        channel_id: self.dest.channel_id.clone(),
+                        channel_id: self.endpoint.channel_id.clone(),
                         controller: self.controller.clone(),
                     })?,
 
@@ -155,9 +133,9 @@ impl Handler {
                     Some(r) => deps.api.addr_validate(&r)?,
                 };
 
-                if trace.sender_is_source(&self.src) {
+                if trace.sender_is_source(&self.counterparty_endpoint) {
                     // append current chain to the path
-                    trace.path.push(self.dest.clone());
+                    trace.path.push(self.endpoint.clone());
 
                     // derive the ibc denom
                     let subdenom = trace.hash().to_hex();
@@ -246,7 +224,7 @@ impl Handler {
                         // only one ICA per controller allowed
                         if self.host.is_some() {
                             return Err(Error::AccountExists {
-                                channel_id: self.dest.channel_id,
+                                channel_id: self.endpoint.channel_id,
                                 controller: self.controller,
                             })?;
                         }
@@ -270,7 +248,7 @@ impl Handler {
 
                         ACCOUNTS.save(
                             deps.storage,
-                            (&self.dest.port_id, &self.dest.channel_id, &self.controller),
+                            (&self.endpoint.port_id, &self.endpoint.channel_id, &self.controller),
                             &addr,
                         )?;
 
@@ -288,7 +266,7 @@ impl Handler {
                                     msg:     to_binary(&Empty {})?,
                                     funds:   vec![],
                                     admin:   Some(env.contract.address.into()),
-                                    label:   format!("one-account/{}/{}", self.dest.channel_id, self.controller),
+                                    label:   format!("one-account/{}/{}", self.endpoint.channel_id, self.controller),
                                     salt,
                                 },
                                 AFTER_ACTION,
@@ -308,7 +286,7 @@ impl Handler {
                                         // chainB as the "src"... make sense?
                                         // we perhaps should change the naming of this variable to
                                         // avoid the confusion
-                                        src:        self.dest.clone(),
+                                        endpoint:   self.endpoint.clone(),
                                         controller: self.controller.clone(),
                                         data,
                                     }))?,
@@ -323,7 +301,7 @@ impl Handler {
             Action::Execute(msg) => {
                 let Some(addr) = &self.host else {
                     return Err(Error::AccountNotFound {
-                        channel_id: self.dest.channel_id,
+                        channel_id: self.endpoint.channel_id,
                         controller: self.controller,
                     });
                 };
@@ -343,7 +321,7 @@ impl Handler {
             Action::Query(msg) => {
                 let Some(addr) = &self.host else {
                     return Err(Error::AccountNotFound {
-                        channel_id: self.dest.channel_id,
+                        channel_id: self.endpoint.channel_id,
                         controller: self.controller,
                     });
                 };
@@ -399,11 +377,11 @@ impl Handler {
             let factory_res_bytes = execute_res.data.ok_or(Error::FactoryResponseDataMissing)?;
             let factory_res: FactoryResponse = from_binary(&factory_res_bytes)?;
 
-            let addr = deps.api.addr_validate(&factory_res.host)?;
+            let addr = deps.api.addr_validate(&factory_res.address)?;
 
             ACCOUNTS.save(
                 deps.storage,
-                (&self.dest.port_id, &self.dest.channel_id, &self.controller),
+                (&self.endpoint.port_id, &self.endpoint.channel_id, &self.controller),
                 &addr,
             )?;
 
@@ -431,8 +409,8 @@ impl Handler {
     /// - not exceed the 64 byte max length
     fn default_salt(&self) -> Binary {
         let mut hasher = Sha256::new();
-        hasher.update(self.dest.port_id.as_bytes());
-        hasher.update(self.dest.channel_id.as_bytes());
+        hasher.update(self.endpoint.port_id.as_bytes());
+        hasher.update(self.endpoint.channel_id.as_bytes());
         hasher.update(self.controller.as_bytes());
         hasher.finalize().to_vec().into()
     }

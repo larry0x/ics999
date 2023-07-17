@@ -16,7 +16,7 @@ const AFTER_INSTANTIATE: u64 = 1;
 #[cw_serde]
 pub struct Config {
     pub one_core:           String,
-    pub allowed_src:        IbcEndpoint,
+    pub allowed_endpoint:   IbcEndpoint,
     pub allowed_controller: String,
 }
 
@@ -67,14 +67,14 @@ pub fn execute(
     msg:  FactoryExecuteMsg,
 ) -> Result<Response> {
     match msg {
-        FactoryExecuteMsg::Ics999(FactoryMsg { src, controller, data }) => {
+        FactoryExecuteMsg::Ics999(FactoryMsg { endpoint, controller, data }) => {
             let cfg = CONFIG.load(deps.storage)?;
 
             if info.sender != cfg.one_core {
                 return Err(Error::NotIcs999);
             }
 
-            if src != cfg.allowed_src {
+            if endpoint != cfg.allowed_endpoint {
                 return Err(Error::NotAllowedSource);
             }
 
@@ -113,7 +113,7 @@ pub fn reply(_: DepsMut, _: Env, reply: Reply) -> Result<Response> {
             let instantiate_res = parse_instantiate_response_data(&instantiate_res_bytes)?;
 
             let data = to_binary(&FactoryResponse {
-                host: instantiate_res.contract_address,
+                address: instantiate_res.contract_address,
             })?;
 
             Ok(Response::new().set_data(data))

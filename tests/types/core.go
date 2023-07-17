@@ -8,12 +8,22 @@ type CoreConfig struct {
 }
 
 type CoreExecuteMsg struct {
-	Act *Act `json:"act,omitempty"`
+	Act    *Act    `json:"act,omitempty"`
+	Handle *Handle `json:"handle,omitempty"`
 }
 
 type Act struct {
-	ConnectionID string   `json:"connection_id"`
-	Actions      []Action `json:"actions"`
+	ConnectionID string                  `json:"connection_id"`
+	Actions      []Action                `json:"actions"`
+	Timeout      *wasmvmtypes.IBCTimeout `json:"timeout,omitempty"`
+}
+
+type Handle struct {
+	CounterpartyEndpoint wasmvmtypes.IBCEndpoint `json:"counterparty_endpoint"`
+	Endpoint             wasmvmtypes.IBCEndpoint `json:"endpoint"`
+	Controller           string                  `json:"controller"`
+	Actions              []Action                `json:"actions"`
+	Traces               []Trace                 `json:"traces"`
 }
 
 type CoreQueryMsg struct {

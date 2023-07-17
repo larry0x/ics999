@@ -114,16 +114,16 @@ pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdRes
         },
 
         ExecuteMsg::Ics999(CallbackMsg {
-            dest,
+            endpoint,
             sequence,
             outcome,
         }) => {
-            OUTCOMES.save(deps.storage, (&dest.port_id, &dest.channel_id, sequence), &outcome)?;
+            OUTCOMES.save(deps.storage, (&endpoint.port_id, &endpoint.channel_id, sequence), &outcome)?;
 
             Ok(Response::new()
                 .add_attribute("method", "packet_callback")
-                .add_attribute("port_id", dest.port_id)
-                .add_attribute("channel_id", dest.channel_id)
+                .add_attribute("port_id", endpoint.port_id)
+                .add_attribute("channel_id", endpoint.channel_id)
                 .add_attribute("sequence", sequence.to_string())
                 .add_attribute("outcome", outcome.ty()))
         },
