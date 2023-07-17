@@ -1,5 +1,20 @@
 package types
 
+import wasmvmtypes "github.com/CosmWasm/wasmvm/types"
+
+// --------------------------- mock-account-factory ----------------------------
+
+type FactoryConfig struct {
+	OneCore           string                  `json:"one_core"`
+	AllowedSrc        wasmvmtypes.IBCEndpoint `json:"allowed_src"`
+	AllowedController string                  `json:"allowed_controller"`
+}
+
+type FactoryData struct {
+	CodeID         uint64 `json:"code_id"`
+	InstantiateMsg []byte `json:"instantiate_msg"`
+}
+
 // -------------------------------- mock-sender --------------------------------
 
 type SenderInstantiateMsg struct {
