@@ -12,9 +12,9 @@ version       = "0.0.0"
 authors       = ["Larry Engineer <gm@larry.engineer>"]
 edition       = "2021"
 license       = "UNLICENSED"
-homepage      = "https://github.com/larry0x/ics-999"
-repository    = "https://github.com/larry0x/ics-999"
-documentation = "https://github.com/larry0x/ics-999#readme"
+homepage      = "https://github.com/larry0x/ics999"
+repository    = "https://github.com/larry0x/ics999"
+documentation = "https://github.com/larry0x/ics999#readme"
 keywords      = ["blockchain", "cosmos", "cosmwasm", "ibc"]
 rust-version  = "1.65.0"
 
