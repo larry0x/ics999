@@ -15,7 +15,6 @@ use crate::{
     transfer::{assert_free_denom_creation, construct_denom, into_proto_coin, TraceItem},
     utils::default_salt,
     AFTER_ACTION,
-    AFTER_CUSTOM_FACTORY,
 };
 
 const HANDLER: Item<Handler> = Item::new("handler");
@@ -301,7 +300,7 @@ impl Handler {
                                     }))?,
                                     funds: vec![],
                                 },
-                                AFTER_CUSTOM_FACTORY,
+                                AFTER_ACTION,
                             ))
                     },
                 }
