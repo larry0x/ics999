@@ -36,7 +36,7 @@ func (suite *testSuite) TestRegisterAccount() {
 		suite.chainA.senderAddr.String(),
 	)
 	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), ack1.Results[0].RegisterAccount.Address, accountAddr.String())
+	require.Equal(suite.T(), ack1.Success[0].RegisterAccount.Address, accountAddr.String())
 
 	// query the account contract info
 	accountInfo := suite.chainB.ContractInfo(accountAddr)
@@ -99,7 +99,7 @@ func (suite *testSuite) TestExecuteWasm() {
 
 	// check the ack includes the correct result
 	res := wasmtypes.MsgExecuteContractResponse{}
-	err = proto.Unmarshal(ack1.Results[1].Execute.Data, &res)
+	err = proto.Unmarshal(ack1.Success[1].Execute.Data, &res)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), []byte(`{"new_number":1}`), res.Data)
 
@@ -213,10 +213,10 @@ func (suite *testSuite) TestQuery() {
 	})
 	require.NoError(suite.T(), err)
 	fmt.Println(string(mustMarshalJSON(suite.T(), ack)))
-	require.Equal(suite.T(), []byte("0"), ack.Results[1].Query.Response)
-	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Results[2].Query.Response)
-	require.Equal(suite.T(), []byte("1"), ack.Results[4].Query.Response)
-	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Results[5].Query.Response)
+	require.Equal(suite.T(), []byte("0"), ack.Success[1].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":0}`), ack.Success[2].Query.Response)
+	require.Equal(suite.T(), []byte("1"), ack.Success[4].Query.Response)
+	require.Equal(suite.T(), []byte(`{"number":1}`), ack.Success[5].Query.Response)
 }
 
 func (suite *testSuite) TestCallback() {
@@ -254,7 +254,7 @@ func (suite *testSuite) TestCallback() {
 
 	// the mock-sender contract should have stored the packet outcome during the
 	// callback. let's grab this outcome
-	requireOutcomeEqual(suite.T(), suite.chainA, packet1.SourceChannel, packet1.Sequence, "successful")
+	requireOutcomeSuccess(suite.T(), suite.chainA, packet1.SourcePort, packet1.SourceChannel, packet1.Sequence)
 
 	// do the same thing but with an intentionally failed packet
 	packet2, ack2, err := act(suite.chainA, suite.pathAB, []types.Action{
@@ -274,5 +274,5 @@ func (suite *testSuite) TestCallback() {
 	requirePacketFailed(suite.T(), ack2)
 
 	// mock-sender should have recorded the correct packet outcome
-	requireOutcomeEqual(suite.T(), suite.chainA, packet2.SourceChannel, packet2.Sequence, "failed")
+	requireOutcomeFailed(suite.T(), suite.chainA, packet2.SourcePort, packet2.SourceChannel, packet2.Sequence)
 }

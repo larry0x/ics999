@@ -102,7 +102,7 @@ func (suite *testSuite) TestRegisterCustomFactory() {
 				suite.chainA.senderAddr.String(),
 			)
 			require.NoError(suite.T(), err)
-			require.Equal(suite.T(), ack.Results[0].RegisterAccount.Address, accountAddr.String())
+			require.Equal(suite.T(), ack.Success[0].RegisterAccount.Address, accountAddr.String())
 		} else {
 			requirePacketFailed(suite.T(), ack)
 		}

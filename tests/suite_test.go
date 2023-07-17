@@ -209,7 +209,7 @@ func reversePath(path *wasmibctesting.Path) *wasmibctesting.Path {
 
 func act(src *testChain, path *wasmibctesting.Path, actions []types.Action) (*channeltypes.Packet, *types.PacketAck, error) {
 	// compose the executeMsg
-	executeMsg, err := json.Marshal(types.SenderExecuteMsg{
+	executeMsg, err := json.Marshal(types.MockSenderExecuteMsg{
 		Send: &types.Send{
 			ConnectionID: path.EndpointA.ConnectionID,
 			Actions:      actions,
@@ -266,6 +266,24 @@ func queryAccount(chain *testChain, channelID, controller string) (sdk.AccAddres
 	return accountAddr, nil
 }
 
+func queryOutcome(chain *testChain, portID, channelID string, sequence uint64) (*types.PacketOutcome, error) {
+	outcomeRes := types.OutcomeResponse{}
+	if err := chain.SmartQuery(
+		chain.senderAddr.String(),
+		&types.SenderQueryMsg{
+			Outcome: &types.OutcomeKey{
+				Dest:     wasmvmtypes.IBCEndpoint{PortID: portID, ChannelID: channelID},
+				Sequence: sequence,
+			},
+		},
+		&outcomeRes,
+	); err != nil {
+		return nil, err
+	}
+
+	return &outcomeRes.Outcome, nil
+}
+
 func deriveVoucherDenom(chain *testChain, testPaths []*wasmibctesting.Path, baseDenom string) string {
 	// convert ibctesting.Endpoint to wasmvmtypes.IBCEndpoint
 	path := []wasmvmtypes.IBCEndpoint{}
@@ -298,13 +316,13 @@ func denomHashFromTrace(trace types.Trace) string {
 }
 
 func requirePacketSuccess(t *testing.T, ack *types.PacketAck) {
-	require.NotEmpty(t, ack.Results)
-	require.Empty(t, ack.Error)
+	require.NotEmpty(t, ack.Success)
+	require.Empty(t, ack.Failed)
 }
 
 func requirePacketFailed(t *testing.T, ack *types.PacketAck) {
-	require.Empty(t, ack.Results)
-	require.NotEmpty(t, ack.Error)
+	require.Empty(t, ack.Success)
+	require.NotEmpty(t, ack.Failed)
 }
 
 func requireBalanceEqual(t *testing.T, chain *testChain, addr sdk.AccAddress, denom string, expBalance int64) {
@@ -342,20 +360,20 @@ func requireNumberEqual(t *testing.T, chain *testChain, expNumber uint64) {
 	require.Equal(t, expNumber, numberRes.Number)
 }
 
-func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, sequence uint64, expOutcome string) {
-	outcomeRes := types.OutcomeResponse{}
-	err := chain.SmartQuery(
-		chain.senderAddr.String(),
-		&types.SenderQueryMsg{
-			Outcome: &types.OutcomeQuery{
-				ChannelID: channelID,
-				Sequence:  sequence,
-			},
-		},
-		&outcomeRes,
-	)
+func requireOutcomeSuccess(t *testing.T, chain *testChain, portID, channelID string, sequence uint64) {
+	outcome, err := queryOutcome(chain, portID, channelID, sequence)
 	require.NoError(t, err)
-	require.Equal(t, expOutcome, outcomeRes.Outcome)
+	require.NotNil(t, outcome.Success)
+	require.Empty(t, outcome.Failed)
+	require.Nil(t, outcome.Timeout)
+}
+
+func requireOutcomeFailed(t *testing.T, chain *testChain, portID, channelID string, sequence uint64) {
+	outcome, err := queryOutcome(chain, portID, channelID, sequence)
+	require.NoError(t, err)
+	require.Nil(t, outcome.Success)
+	require.NotEmpty(t, outcome.Failed)
+	require.Nil(t, outcome.Timeout)
 }
 
 func requireOwnershipEqual(t *testing.T, chain *testChain, contractAddr sdk.Address, expOwnership types.Ownership) {

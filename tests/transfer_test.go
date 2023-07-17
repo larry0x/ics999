@@ -64,7 +64,7 @@ func (suite *testSuite) TestMultipleTransfers() {
 	marsVoucherDenom := deriveVoucherDenom(suite.chainB, []*wasmibctesting.Path{suite.pathAB}, "umars")
 
 	// recipient unspecified, default to the ICA
-	icaAddr, err := sdk.AccAddressFromBech32(ack.Results[2].RegisterAccount.Address)
+	icaAddr, err := sdk.AccAddressFromBech32(ack.Success[2].RegisterAccount.Address)
 	require.NoError(suite.T(), err)
 
 	// sender balance on chainA should have been reduced

@@ -8,12 +8,14 @@ import (
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
 )
 
+// ---------------------------------- channel ----------------------------------
+
 const (
 	Order   = channeltypes.UNORDERED
 	Version = "ics999-1"
 )
 
-// -------------------------------- PacketData ---------------------------------
+// ---------------------------------- packet -----------------------------------
 
 type PacketData struct {
 	Sender  string   `json:"sender"`
@@ -48,11 +50,11 @@ type RegisterAccountCustomFactory struct {
 	Data    []byte `json:"data,omitempty"`
 }
 
-// --------------------------------- PacketAck ---------------------------------
+// ------------------------------------ ack ------------------------------------
 
 type PacketAck struct {
-	Results []ActionResult `json:"results,omitempty"`
-	Error   string         `json:"error,omitempty"`
+	Success []ActionResult `json:"success,omitempty"`
+	Failed  string         `json:"failed,omitempty"`
 }
 
 type ActionResult struct {
@@ -80,7 +82,7 @@ type QueryResult struct {
 	Response []byte `json:"response"`
 }
 
-// ----------------------------------- Trace -----------------------------------
+// ----------------------------------- trace -----------------------------------
 
 type Trace struct {
 	Denom     string                    `json:"denom"`
@@ -92,3 +94,39 @@ type TraceItem struct {
 	BaseDenom string                    `json:"base_denom"`
 	Path      []wasmvmtypes.IBCEndpoint `json:"path"`
 }
+
+// --------------------------- third party: factory ----------------------------
+
+type FactoryExecuteMsg struct {
+	ICS999 *FactoryMsg `json:"ics999,omitempty"`
+}
+
+type FactoryMsg struct {
+	Src        wasmvmtypes.IBCEndpoint `json:"src"`
+	Controller string                  `json:"controller"`
+	Data       []byte                  `json:"data,omitempty"`
+}
+
+type FactoryResponse struct {
+	Host string `json:"host"`
+}
+
+// ---------------------------- third party: sender ----------------------------
+
+type SenderExecuteMsg struct {
+	ICS999 *CallbackMsg `json:"ics999,omitempty"`
+}
+
+type CallbackMsg struct {
+	Dest     wasmvmtypes.IBCEndpoint `json:"dest"`
+	Sequence uint64                  `json:"sequence"`
+	Outcome  PacketOutcome           `json:"outcome"`
+}
+
+type PacketOutcome struct {
+	Success []ActionResult `json:"success,omitempty"`
+	Failed  string         `json:"failed,omitempty"`
+	Timeout *Timeout       `json:"timeout,omitempty"`
+}
+
+type Timeout struct{}

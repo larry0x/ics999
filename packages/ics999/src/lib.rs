@@ -224,7 +224,7 @@ pub struct CallbackMsg {
 pub enum PacketOutcome {
     Success(Vec<ActionResult>),
     Failed(String),
-    Timeout,
+    Timeout {},
 }
 
 impl From<Option<PacketAck>> for PacketOutcome {
@@ -232,7 +232,7 @@ impl From<Option<PacketAck>> for PacketOutcome {
         match maybe_ack {
             Some(PacketAck::Success(results)) => PacketOutcome::Success(results),
             Some(PacketAck::Failed(error))    => PacketOutcome::Failed(error),
-            None                              => PacketOutcome::Timeout,
+            None                              => PacketOutcome::Timeout {},
         }
     }
 }
@@ -242,7 +242,7 @@ impl PacketOutcome {
         match self {
             PacketOutcome::Success(_) => "success",
             PacketOutcome::Failed(_)  => "failed",
-            PacketOutcome::Timeout    => "timeout",
+            PacketOutcome::Timeout {} => "timeout",
         }
     }
 }

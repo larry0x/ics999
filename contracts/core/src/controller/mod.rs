@@ -182,7 +182,7 @@ fn localhost(deps: Deps, connection_id: &str) -> Result<IbcEndpoint> {
 fn should_refund(outcome: &PacketOutcome) -> bool {
     match outcome {
         // packet timed out -- refund
-        PacketOutcome::Timeout => true,
+        PacketOutcome::Timeout {} => true,
 
         // packet acknowledged but failed -- refund
         PacketOutcome::Failed(_) => true,
