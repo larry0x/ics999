@@ -28,7 +28,7 @@ pub fn act(
     let mut traces: Vec<Trace> = vec![];
 
     // find the current chain's port and channel IDs
-    let localhost = ACTIVE_CHANNELS.load(deps.storage, &connection_id)?;
+    let endpoint = ACTIVE_CHANNELS.load(deps.storage, &connection_id)?;
 
     // go through all transfer actions, either escrow or burn the coins based on
     // whether the current chain is the source or the sink.
@@ -42,7 +42,7 @@ pub fn act(
                 amount: *amount,
             };
 
-            if trace.sender_is_source(&localhost) {
+            if trace.sender_is_source(&endpoint) {
                 escrow(&coin, &mut attrs);
             } else {
                 // note that we burn from the contract address instead of from
@@ -82,7 +82,7 @@ pub fn act(
         .add_attributes(attrs)
         .add_messages(msgs)
         .add_message(IbcMsg::SendPacket {
-            channel_id: localhost.channel_id,
+            channel_id: endpoint.channel_id,
             data: to_binary(&PacketData {
                 controller: info.sender.into(),
                 actions,
