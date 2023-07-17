@@ -74,11 +74,11 @@ pub fn after_all_actions(res: SubMsgResult) -> Result<Response> {
             let action_res_bin = execute_res.data.expect("missing action results data");
             let action_res = from_slice(&action_res_bin)?;
 
-            PacketAck::Results(action_res)
+            PacketAck::Success(action_res)
         },
 
         // one of actions failed - write an Error ack
-        SubMsgResult::Err(err) => PacketAck::Error(err.clone()),
+        SubMsgResult::Err(err) => PacketAck::Failed(err.clone()),
     };
 
     Ok(Response::new()

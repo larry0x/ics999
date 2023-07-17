@@ -140,8 +140,8 @@ pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdRes
         } => {
             let outcome = match ack_opt {
                 Some(ack) => match ack {
-                    PacketAck::Results(_) => PacketOutcome::Successful,
-                    PacketAck::Error(_)   => PacketOutcome::Failed,
+                    PacketAck::Success(_) => PacketOutcome::Successful,
+                    PacketAck::Failed(_)   => PacketOutcome::Failed,
                 },
                 None => PacketOutcome::TimedOut,
             };

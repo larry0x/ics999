@@ -97,20 +97,17 @@ pub enum RegisterOptions {
 
 /// ICS-999 packet acknowledgement
 ///
-/// Related: ICS-4 recommand acknowldgement envelop format:
+/// Mostly based on the format recommended by ICS-4, but not exactly the same:
 /// https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#acknowledgement-envelope
 #[cw_serde]
 pub enum PacketAck {
     /// All actions were executed successfully. In this case, we return the
     /// result of each action.
-    ///
-    /// ICS-4 recommends a raw binary here, but we choose to use `Vec<ActionResult>`
-    /// so that it's easier to consume by the sender contract
-    Results(Vec<ActionResult>),
+    Success(Vec<ActionResult>),
 
     /// One of the actions failed to execute. In this case, the entire queue of
-    /// actions is considered to be failed. We inform the sender contract of the
-    /// failure.
+    /// actions is considered failed altogether. We inform the sender of the
+    /// error message.
     ///
     /// NOTE: currently, wasmd redacts error messages due to concern of
     /// non-determinism: https://github.com/CosmWasm/wasmd/issues/759
@@ -120,9 +117,9 @@ pub enum PacketAck {
     /// this:
     ///
     /// ```json
-    /// {"error":"codespace: wasm, code: 5"}
+    /// {"failed":"codespace: wasm, code: 5"}
     /// ```
-    Error(String),
+    Failed(String),
 }
 
 #[cw_serde]

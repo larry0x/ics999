@@ -183,11 +183,11 @@ fn should_refund(ack: &Option<PacketAck>) -> bool {
         // packet timed out -- refund
         None => true,
 
-        // packet acknowledged but errored -- refund
-        Some(PacketAck::Error(_)) => true,
+        // packet acknowledged but failed -- refund
+        Some(PacketAck::Failed(_)) => true,
 
         // packet acknowledged and succeeded -- no refund
-        Some(PacketAck::Results(_)) => false,
+        Some(PacketAck::Success(_)) => false,
     }
 }
 
