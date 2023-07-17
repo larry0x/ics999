@@ -53,7 +53,7 @@ func (suite *testSuite) TestRegisterAccount() {
 		suite.T(),
 		suite.chainB,
 		accountAddr,
-		types.OwnershipResponse{
+		types.Ownership{
 			Owner:         suite.chainB.coreAddr.String(),
 			PendingOwner:  "",
 			PendingExpiry: nil,

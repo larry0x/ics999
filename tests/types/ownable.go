@@ -1,12 +1,6 @@
 package types
 
-type OwnableQueryMsg struct {
-	Ownership *OwnershipQuery `json:"ownership,omitempty"`
-}
-
-type OwnershipQuery struct{}
-
-type OwnershipResponse struct {
+type Ownership struct {
 	Owner         string      `json:"owner,omitempty"`
 	PendingOwner  string      `json:"pending_owner,omitempty"`
 	PendingExpiry *Expiration `json:"pending_expiry,omitempty"`

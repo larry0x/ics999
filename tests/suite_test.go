@@ -358,11 +358,11 @@ func requireOutcomeEqual(t *testing.T, chain *testChain, channelID string, seque
 	require.Equal(t, expOutcome, outcomeRes.Outcome)
 }
 
-func requireOwnershipEqual(t *testing.T, chain *testChain, contractAddr sdk.Address, expOwnership types.OwnershipResponse) {
+func requireOwnershipEqual(t *testing.T, chain *testChain, contractAddr sdk.Address, expOwnership types.Ownership) {
 	ownershipBin, err := chain.RawQuery(contractAddr.String(), []byte("ownership"))
 	require.NoError(t, err)
 
-	var ownership types.OwnershipResponse
+	var ownership types.Ownership
 	err = json.Unmarshal(ownershipBin, &ownership)
 	require.NoError(t, err)
 
