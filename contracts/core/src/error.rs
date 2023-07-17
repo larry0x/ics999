@@ -1,3 +1,5 @@
+use cosmwasm_std::IbcEndpoint;
+
 use {
     crate::utils::Coins,
     cosmwasm_std::{IbcOrder, Instantiate2AddressError, OverflowError, StdError},
@@ -70,21 +72,15 @@ pub enum Error {
         connection_id: String,
     },
 
-    #[error("no channel found at port `{port_id}` with channel id `{channel_id}`")]
-    ChannelNotFound {
-        port_id:    String,
-        channel_id: String,
-    },
-
-    #[error("an interchain account already exists for channel `{channel_id}` and controller `{controller}`")]
+    #[error("an interchain account already exists for endpoint `{endpoint:?}`, and controller `{controller}`")]
     AccountExists {
-        channel_id: String,
+        endpoint:   IbcEndpoint,
         controller: String,
     },
 
-    #[error("no interchain account found at channel `{channel_id}` and controller `{controller}`")]
+    #[error("no interchain account found at endpoint `{endpoint:?}`, and controller `{controller}`")]
     AccountNotFound {
-        channel_id: String,
+        endpoint:   IbcEndpoint,
         controller: String,
     },
 }
