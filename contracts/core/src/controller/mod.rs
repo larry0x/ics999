@@ -2,8 +2,7 @@ use cosmwasm_std::{
     from_slice, to_binary, Binary, Coin, Deps, DepsMut, Env, IbcBasicResponse, IbcEndpoint, IbcMsg,
     IbcPacket, IbcTimeout, MessageInfo, Response, Storage, SubMsg, WasmMsg,
 };
-
-use ics999::{Action, PacketAck, PacketData, SenderExecuteMsg, Trace};
+use ics999::{Action, CallbackMsg, PacketData, PacketOutcome, SenderExecuteMsg, Trace};
 
 use crate::{
     error::{Error, Result},
@@ -106,9 +105,10 @@ pub fn packet_lifecycle_complete(
 
     // deserialize the ack
     let ack = ack_bin.map(|bin| from_slice(&bin)).transpose()?;
+    let outcome: PacketOutcome = ack.into();
 
     // process refund if the packet timed out or failed
-    if should_refund(&ack) {
+    if should_refund(&outcome) {
         for action in &packet_data.actions {
             if let Action::Transfer { denom, amount, .. } = action {
                 let trace = trace_of(deps.storage, denom)?;
@@ -132,20 +132,21 @@ pub fn packet_lifecycle_complete(
 
     Ok(IbcBasicResponse::new()
         .add_attribute("method", "packet_lifecycle_complete")
+        .add_attribute("port_id", &packet.src.port_id)
         .add_attribute("channel_id", &packet.src.channel_id)
         .add_attribute("sequence", packet.sequence.to_string())
-        .add_attribute("acknowledged", ack.is_some().to_string())
+        .add_attribute("outcome", outcome.ty())
         .add_attribute("sender", &packet_data.sender)
         .add_attributes(attrs)
         .add_messages(msgs)
         .add_submessage(SubMsg::reply_always(
             WasmMsg::Execute {
                 contract_addr: packet_data.sender,
-                msg: to_binary(&SenderExecuteMsg::PacketCallback {
-                    channel_id: packet.src.channel_id,
-                    sequence:   packet.sequence,
-                    ack,
-                })?,
+                msg: to_binary(&SenderExecuteMsg::Ics999(CallbackMsg {
+                    dest:     packet.src,
+                    sequence: packet.sequence,
+                    outcome,
+                }))?,
                 funds: vec![],
             },
             AFTER_CALLBACK,
@@ -178,16 +179,16 @@ fn localhost(deps: Deps, connection_id: &str) -> Result<IbcEndpoint> {
     })
 }
 
-fn should_refund(ack: &Option<PacketAck>) -> bool {
-    match ack {
+fn should_refund(outcome: &PacketOutcome) -> bool {
+    match outcome {
         // packet timed out -- refund
-        None => true,
+        PacketOutcome::Timeout => true,
 
         // packet acknowledged but failed -- refund
-        Some(PacketAck::Failed(_)) => true,
+        PacketOutcome::Failed(_) => true,
 
         // packet acknowledged and succeeded -- no refund
-        Some(PacketAck::Success(_)) => false,
+        PacketOutcome::Success(_) => false,
     }
 }
 

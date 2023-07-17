@@ -1,14 +1,11 @@
-use std::fmt;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, OverflowError,
-    Response, StdResult, WasmMsg,
+    Response, StdResult, WasmMsg, IbcEndpoint,
 };
 use cw_paginate::paginate_map;
 use cw_storage_plus::{Bound, Item, Map};
-
-use ics999::{Action, PacketAck};
+use ics999::{Action, CallbackMsg, PacketOutcome};
 use one_core::utils::Coins;
 
 pub const ONE_CORE: Item<Addr> = Item::new("one_core");
@@ -16,26 +13,8 @@ pub const ONE_CORE: Item<Addr> = Item::new("one_core");
 // we save the outcome of the packet in contract store during callbacks
 // we then verify the outcomes are correct
 //
-// (channel_id, sequence) => PacketOutcome
-pub const OUTCOMES: Map<(&str, u64), PacketOutcome> = Map::new("outcomes");
-
-#[cw_serde]
-pub enum PacketOutcome {
-    Successful,
-    Failed,
-    TimedOut,
-}
-
-impl fmt::Display for PacketOutcome {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            PacketOutcome::Successful => "successful",
-            PacketOutcome::Failed     => "failed",
-            PacketOutcome::TimedOut   => "timed_out",
-        };
-        write!(f, "{s}")
-    }
-}
+// (port_id, channel_id, sequence) => outcome
+pub const OUTCOMES: Map<(&str, &str, u64), PacketOutcome> = Map::new("outcomes");
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -52,11 +31,7 @@ pub enum ExecuteMsg {
     },
 
     /// Respond to packet ack or timeout. Required by one-core.
-    PacketCallback {
-        channel_id: String,
-        sequence:   u64,
-        ack:        Option<PacketAck>,
-    },
+    Ics999(CallbackMsg),
 }
 
 #[cw_serde]
@@ -64,32 +39,35 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Query a single packet acknowledgement
     #[returns(OutcomeResponse)]
-    Outcome {
-        channel_id: String,
-        sequence:   u64,
-    },
+    Outcome(OutcomeKey),
 
     /// Iterate all stored packet acknowledgements
     #[returns(Vec<OutcomeResponse>)]
     Outcomes {
-        start_after: Option<(String, u64)>,
+        start_after: Option<OutcomeKey>,
         limit:       Option<u32>,
     },
 }
 
 #[cw_serde]
+pub struct OutcomeKey {
+    pub dest:     IbcEndpoint,
+    pub sequence: u64,
+}
+
+#[cw_serde]
 pub struct OutcomeResponse {
-    channel_id: String,
-    sequence:   u64,
-    outcome:    PacketOutcome,
+    pub dest:     IbcEndpoint,
+    pub sequence: u64,
+    pub outcome:  PacketOutcome,
 }
 
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _: Env,
-    _: MessageInfo,
-    msg: InstantiateMsg,
+    _:    Env,
+    _:    MessageInfo,
+    msg:  InstantiateMsg,
 ) -> StdResult<Response> {
     let one_core_addr = deps.api.addr_validate(&msg.one_core)?;
     ONE_CORE.save(deps.storage, &one_core_addr)?;
@@ -133,26 +111,19 @@ pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdRes
                 }))
         },
 
-        ExecuteMsg::PacketCallback {
-            channel_id,
+        ExecuteMsg::Ics999(CallbackMsg {
+            dest,
             sequence,
-            ack: ack_opt,
-        } => {
-            let outcome = match ack_opt {
-                Some(ack) => match ack {
-                    PacketAck::Success(_) => PacketOutcome::Successful,
-                    PacketAck::Failed(_)   => PacketOutcome::Failed,
-                },
-                None => PacketOutcome::TimedOut,
-            };
-
-            OUTCOMES.save(deps.storage, (&channel_id, sequence), &outcome)?;
+            outcome,
+        }) => {
+            OUTCOMES.save(deps.storage, (&dest.port_id, &dest.channel_id, sequence), &outcome)?;
 
             Ok(Response::new()
                 .add_attribute("method", "packet_callback")
-                .add_attribute("channel_id", channel_id)
+                .add_attribute("port_id", dest.port_id)
+                .add_attribute("channel_id", dest.channel_id)
                 .add_attribute("sequence", sequence.to_string())
-                .add_attribute("outcome", outcome.to_string()))
+                .add_attribute("outcome", outcome.ty()))
         },
     }
 }
@@ -160,15 +131,16 @@ pub fn execute(deps: DepsMut, _: Env, _: MessageInfo, msg: ExecuteMsg) -> StdRes
 #[entry_point]
 pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Outcome {
-            channel_id,
+        QueryMsg::Outcome(OutcomeKey {
+            dest,
             sequence,
-        } => {
+        }) => {
             let res = OutcomeResponse {
-                outcome: OUTCOMES.load(deps.storage, (&channel_id, sequence))?,
-                channel_id,
+                outcome: OUTCOMES.load(deps.storage, (&dest.port_id, &dest.channel_id, sequence))?,
+                dest,
                 sequence,
             };
+
             to_binary(&res)
         },
 
@@ -178,16 +150,18 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => {
             let start = start_after
                 .as_ref()
-                .map(|(chan_id, seq)| Bound::exclusive((chan_id.as_str(), *seq)));
+                .map(|OutcomeKey { dest, sequence }| {
+                    Bound::exclusive((dest.port_id.as_str(), dest.channel_id.as_str(), *sequence))
+                });
 
             let res = paginate_map(
                 &OUTCOMES,
                 deps.storage,
                 start,
                 limit,
-                |(channel_id, sequence), outcome| -> StdResult<_> {
+                |(port_id, channel_id, sequence), outcome| -> StdResult<_> {
                     Ok(OutcomeResponse {
-                        channel_id,
+                        dest: IbcEndpoint { port_id, channel_id },
                         sequence,
                         outcome,
                     })

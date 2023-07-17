@@ -208,16 +208,41 @@ pub struct FactoryResponse {
 
 // ---------------------------- third party: sender ----------------------------
 
-/// If the sender contract wishes to receive a callback after the completion of
-/// a packet lifecycle, it must implement this execute message.
 #[cw_serde]
 pub enum SenderExecuteMsg {
-    /// Called by ICS-999 core contract after the completion of a packet
-    /// lifecycle (acknowledged or timed out)
-    PacketCallback {
-        channel_id: String,
-        sequence: u64,
-        /// The packet acknowledgement. None if the packet has timed out.
-        ack: Option<PacketAck>,
-    },
+    Ics999(CallbackMsg),
+}
+
+#[cw_serde]
+pub struct CallbackMsg {
+    pub dest:     IbcEndpoint,
+    pub sequence: u64,
+    pub outcome:  PacketOutcome,
+}
+
+#[cw_serde]
+pub enum PacketOutcome {
+    Success(Vec<ActionResult>),
+    Failed(String),
+    Timeout,
+}
+
+impl From<Option<PacketAck>> for PacketOutcome {
+    fn from(maybe_ack: Option<PacketAck>) -> Self {
+        match maybe_ack {
+            Some(PacketAck::Success(results)) => PacketOutcome::Success(results),
+            Some(PacketAck::Failed(error))    => PacketOutcome::Failed(error),
+            None                              => PacketOutcome::Timeout,
+        }
+    }
+}
+
+impl PacketOutcome {
+    pub fn ty(&self) -> &str {
+        match self {
+            PacketOutcome::Success(_) => "success",
+            PacketOutcome::Failed(_)  => "failed",
+            PacketOutcome::Timeout    => "timeout",
+        }
+    }
 }
