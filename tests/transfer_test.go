@@ -227,7 +227,7 @@ func (suite *testSuite) TestSwap() {
 	)
 
 	// deploy mock-dex contract on chainB
-	dexStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_dex-aarch64.wasm")
+	dexStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_dex.wasm")
 	dexInstantiateMsg, err := json.Marshal(&types.DexInstantiateMsg{
 		DenomIn:  astroB,
 		DenomOut: "uusdc",

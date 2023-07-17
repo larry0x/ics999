@@ -31,7 +31,7 @@ func (suite *testSuite) TestRegisterCustomFactory() {
 
 	// instantiate factory contract on chainB, with a config such that only the
 	// sender contract on chainA can register
-	factoryStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_account_factory-aarch64.wasm")
+	factoryStoreRes := suite.chainB.StoreCodeFile("../artifacts/mock_account_factory.wasm")
 	factoryInstantiateMsg, err := json.Marshal(&types.FactoryConfig{
 		OneCore: suite.chainB.coreAddr.String(),
 		AllowedSrc: wasmvmtypes.IBCEndpoint{
